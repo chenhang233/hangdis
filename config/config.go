@@ -1,0 +1,79 @@
+package config
+
+import (
+	"bufio"
+	"hangdis/utils"
+	"os"
+	"path/filepath"
+	"reflect"
+	"strconv"
+	"strings"
+)
+
+type ServerConfig struct {
+	RuntimeID  string
+	Bind       string `conf:"bind"`
+	Port       uint16 `conf:"port"`
+	MaxClients int    `conf:"maxClients"`
+	AbsPath    string
+}
+
+func parse(file *os.File) *ServerConfig {
+	config := &ServerConfig{}
+	scanner := bufio.NewScanner(file)
+	mc := make(map[string]string)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.TrimLeft(line, " ")[0] == '#' {
+			continue
+		}
+		sList := strings.Split(line, " ")
+		if len(sList) != 2 {
+			continue
+		}
+		mc[sList[0]] = sList[1]
+	}
+	vof := reflect.ValueOf(config)
+	tof := reflect.TypeOf(config)
+	n := tof.Elem().NumField()
+	for i := 0; i < n; i++ {
+		fieldValue := vof.Elem().Field(i)
+		field := tof.Elem().Field(i)
+		key, ok := field.Tag.Lookup("conf")
+		if !ok || strings.TrimLeft(key, " ") == "" {
+			key = field.Name
+		}
+		v, ok := mc[key]
+		if ok {
+			switch field.Type.Kind() {
+			case reflect.String:
+				fieldValue.SetString(v)
+			case reflect.Int:
+				intValue, err := strconv.ParseInt(v, 10, 64)
+				if err == nil {
+					fieldValue.SetInt(intValue)
+				}
+			case reflect.Bool:
+				flag := v == "true"
+				fieldValue.SetBool(flag)
+			}
+		}
+	}
+	return config
+}
+
+func SetupConfig(configName string) *ServerConfig {
+	file, err := os.Open(configName)
+	defer file.Close()
+	if err != nil {
+		panic(err)
+	}
+	config := parse(file)
+	config.RuntimeID = utils.RandomUUID()
+	abs, err := filepath.Abs(configName)
+	if err != nil {
+		panic(err)
+	}
+	config.AbsPath = abs
+	return config
+}
