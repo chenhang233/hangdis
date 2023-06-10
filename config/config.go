@@ -14,7 +14,8 @@ type ServerConfig struct {
 	RuntimeID  string
 	Bind       string `conf:"bind"`
 	Port       uint16 `conf:"port"`
-	MaxClients int    `conf:"maxClients"`
+	BindAddr   string
+	MaxClients int `conf:"maxClients"`
 	AbsPath    string
 }
 
@@ -53,12 +54,18 @@ func parse(file *os.File) *ServerConfig {
 				if err == nil {
 					fieldValue.SetInt(intValue)
 				}
+			case reflect.Uint16:
+				uintValue, err := strconv.ParseUint(v, 10, 16)
+				if err == nil {
+					fieldValue.SetUint(uintValue)
+				}
 			case reflect.Bool:
 				flag := v == "true"
 				fieldValue.SetBool(flag)
 			}
 		}
 	}
+	config.BindAddr = config.Bind + ":" + strconv.Itoa(int(config.Port))
 	return config
 }
 

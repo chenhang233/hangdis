@@ -4,12 +4,15 @@ import "hangdis/tcp"
 
 const banner = `
 ##################################################
-	hangDis	       
+			hangDis	       
 ##################################################
 `
 
 func main() {
 	print(banner)
-	s := &tcp.Server{}
-	s.New()
+	s, err := tcp.New()
+	if err != nil {
+		panic(err)
+	}
+	s.Log.Info.Println("server close...")
 }
