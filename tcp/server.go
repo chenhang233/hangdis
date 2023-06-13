@@ -2,35 +2,27 @@ package tcp
 
 import (
 	"fmt"
-	"hangdis/config"
+	"hangdis/interface/tcp"
 	"hangdis/utils/logs"
 	"io"
 	"net"
+	"time"
 )
 
-type Server struct {
-	Name      string
-	config    *config.ServerConfig
-	Log       *logs.LogConf
-	RunServer net.Listener
+type Config struct {
+	Address    string        `yaml:"address"`
+	MaxConnect uint32        `yaml:"max-connect"`
+	Timeout    time.Duration `yaml:"timeout"`
+	Log        *logs.LogConf
+	Name       string
+}
+
+func ListenAndServeWithSignal(cfg *Config, handler tcp.Handler) {
+
 }
 
 func New() (*Server, error) {
-	log, err := logs.LoadLog(logs.ServerLogPath)
-	if err != nil {
-		panic(err)
-	}
-	server := &Server{
-		Log:  log,
-		Name: "hangdis",
-	}
-	sc := config.SetupConfig("hangdis.conf")
-	server.config = sc
-	sf := fmt.Sprintf("ip: %s port: %d", sc.Bind, sc.Port)
-	sf2 := fmt.Sprintf("RuntimeID: %s MaxClients: %d AbsPath: %s", sc.RuntimeID, sc.MaxClients, sc.AbsPath)
-	server.Log.Debug.Println(sf)
-	server.Log.Debug.Println(sf2)
-	return server, server.new()
+
 }
 
 func (s *Server) new() error {

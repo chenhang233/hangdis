@@ -10,17 +10,21 @@ import (
 	"strings"
 )
 
-type ServerConfig struct {
+type ServerProperties struct {
 	RuntimeID  string
 	Bind       string `conf:"bind"`
 	Port       uint16 `conf:"port"`
 	BindAddr   string
 	MaxClients int `conf:"maxClients"`
 	AbsPath    string
+	AppendOnly bool `conf:"appendonly"`
+	Databases  int  `conf:"databases"`
 }
 
-func parse(file *os.File) *ServerConfig {
-	config := &ServerConfig{}
+var Properties *ServerProperties
+
+func parse(file *os.File) *ServerProperties {
+	config := &ServerProperties{}
 	scanner := bufio.NewScanner(file)
 	mc := make(map[string]string)
 	for scanner.Scan() {
@@ -69,18 +73,18 @@ func parse(file *os.File) *ServerConfig {
 	return config
 }
 
-func SetupConfig(configName string) *ServerConfig {
+func SetupConfig(configName string) {
 	file, err := os.Open(configName)
 	defer file.Close()
 	if err != nil {
 		panic(err)
 	}
-	config := parse(file)
-	config.RuntimeID = utils.RandomUUID()
+	Properties := parse(file)
+	Properties.RuntimeID = utils.RandomUUID()
 	abs, err := filepath.Abs(configName)
 	if err != nil {
 		panic(err)
 	}
-	config.AbsPath = abs
-	return config
+	Properties.AbsPath = abs
+
 }
