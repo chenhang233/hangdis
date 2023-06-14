@@ -1,63 +1,126 @@
 package tcp
 
 import (
+	"context"
+	"errors"
 	"fmt"
+	"hangdis/config"
 	"hangdis/interface/tcp"
+	"hangdis/utils"
 	"hangdis/utils/logs"
-	"io"
 	"net"
+	"os"
+	"os/signal"
+	"sync"
+	"syscall"
 	"time"
 )
 
 type Config struct {
-	Address    string        `yaml:"address"`
-	MaxConnect uint32        `yaml:"max-connect"`
-	Timeout    time.Duration `yaml:"timeout"`
-	Log        *logs.LogConf
+	Address    string
+	MaxConnect int
+	Timeout    time.Duration
 	Name       string
 }
 
-func ListenAndServeWithSignal(cfg *Config, handler tcp.Handler) {
+var ClientCounter int
 
-}
-
-func New() (*Server, error) {
-
-}
-
-func (s *Server) new() error {
-	server, err := net.Listen("tcp", s.config.BindAddr)
+func ListenAndServeWithSignal(cfg *Config, handler tcp.Handler) error {
+	closeChan := make(chan struct{})
+	sigCh := make(chan os.Signal)
+	signal.Notify(sigCh, syscall.SIGHUP, syscall.SIGQUIT, syscall.SIGTERM, syscall.SIGINT)
+	go func() {
+		sig := <-sigCh
+		switch sig {
+		case syscall.SIGHUP, syscall.SIGQUIT, syscall.SIGTERM, syscall.SIGINT:
+			closeChan <- struct{}{}
+		}
+	}()
+	cfg.MaxConnect = utils.GetConnNum(config.Properties.MaxClients)
+	listen, err := net.Listen("tcp", cfg.Address)
 	if err != nil {
-		s.Log.Error.Println(err)
 		return err
 	}
-	s.RunServer = server
-	s.handleClientRequest()
+	logs.LOG.Info.Println(fmt.Sprintf("bind: %s, start listening...", cfg.Address))
+	ListenAndServe(listen, handler, closeChan, cfg)
 	return nil
 }
 
-func (s *Server) handleClientRequest() {
+func ListenAndServe(listener net.Listener, handler tcp.Handler, closeChan <-chan struct{}, cfg *Config) {
+	errCh := make(chan error, 1)
+	defer close(errCh)
+	go func() {
+		select {
+		case <-closeChan:
+			logs.LOG.Debug.Println("get exit signal")
+			_ = listener.Close()
+			_ = handler.Close()
+		case er := <-errCh:
+			logs.LOG.Error.Println(fmt.Sprintf("accept error: %s", er.Error()))
+		}
+	}()
+	ctx := context.Background()
+	var waitDone sync.WaitGroup
 	for {
-		accept, err := s.RunServer.Accept()
+		conn, err := listener.Accept()
 		if err != nil {
-			s.Log.Warn.Println(err)
+			errCh <- err
+			break
+		}
+		if ClientCounter >= cfg.MaxConnect {
+			errCh <- errors.New("Over maximum connection ")
 			continue
 		}
-		go s.Read(&accept)
+		ClientCounter++
+		waitDone.Add(1)
+		go func() {
+			defer func() {
+				waitDone.Done()
+				ClientCounter--
+			}()
+			handler.Handle(ctx, conn)
+		}()
 	}
+	waitDone.Wait()
 }
 
-func (s *Server) Read(c *net.Conn) {
-	defer (*c).Close()
-	all, err := io.ReadAll(*c)
-	if err != nil {
-		s.Log.Error.Println(err)
-		return
-	}
-	fmt.Println(all)
-	fmt.Println(string(all))
-}
-
-func (s *Server) Write(c *net.Conn) {
-
-}
+//func New() (*Server, error) {
+//
+//}
+//
+//func (s *Server) new() error {
+//	server, err := net.Listen("tcp", s.config.BindAddr)
+//	if err != nil {
+//		s.Log.Error.Println(err)
+//		return err
+//	}
+//	s.RunServer = server
+//	s.handleClientRequest()
+//	return nil
+//}
+//
+//func (s *Server) handleClientRequest() {
+//	for {
+//		accept, err := s.RunServer.Accept()
+//		if err != nil {
+//			s.Log.Warn.Println(err)
+//			continue
+//		}
+//		go s.Read(&accept)
+//	}
+//}
+//
+//func (s *Server) Read(c *net.Conn) {
+//	defer (*c).Close()
+//	all, err := io.ReadAll(*c)
+//	if err != nil {
+//		s.Log.Error.Println(err)
+//		return
+//	}
+//	fmt.Println(all)
+//	fmt.Println(string(all))
+//}
+//
+//func (s *Server) Write(c *net.Conn) {
+//
+//}

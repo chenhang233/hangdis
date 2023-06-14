@@ -1,0 +1,11 @@
+[debug]2023/06/14 14:17:22 logh.go:34: init log success 
+[debug]2023/06/14 14:17:56 logh.go:34: init log success 
+[debug]2023/06/14 14:23:32 logh.go:34: init log success 
+[debug]2023/06/14 14:23:59 logh.go:34: init log success 
+[debug]2023/06/14 14:25:09 logh.go:34: init log success 
+[debug]2023/06/14 14:25:17 logh.go:34: init log success 
+[debug]2023/06/14 14:26:47 logh.go:34: init log success 
+[debug]2023/06/14 14:28:31 logh.go:34: init log success 
+[debug]2023/06/14 14:29:17 logh.go:35: init log success 
+[info]2023/06/14 14:29:17 server.go:44: bind: 0.0.0.0:8888, start listening...
+[debug]2023/06/14 14:29:40 server.go:55: get exit signal

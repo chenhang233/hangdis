@@ -24,6 +24,16 @@ type LogConf struct {
 	Error       *log.Logger
 }
 
+var LOG *LogConf
+
+func init() {
+	l, err := LoadLog(ServerLogPath)
+	if err != nil {
+		panic(err)
+	}
+	LOG = l
+}
+
 func LoadLog(sName string) (*LogConf, error) {
 	LogPathList = append([]string{}, ServerLogPath)
 	if !LogPathInclude(sName) {

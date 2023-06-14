@@ -8,6 +8,8 @@ import (
 
 const words = "qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM"
 
+const defaultConn = 10
+
 func RandomUUID() string {
 	nR := rand.New(rand.NewSource(time.Now().UnixNano()))
 	wlen := len(words)
@@ -17,4 +19,11 @@ func RandomUUID() string {
 		sb.WriteByte(u)
 	}
 	return sb.String()
+}
+
+func GetConnNum(conn int) int {
+	if conn <= 0 {
+		return defaultConn
+	}
+	return conn
 }

@@ -79,12 +79,11 @@ func SetupConfig(configName string) {
 	if err != nil {
 		panic(err)
 	}
-	Properties := parse(file)
+	Properties = parse(file)
 	Properties.RuntimeID = utils.RandomUUID()
 	abs, err := filepath.Abs(configName)
 	if err != nil {
 		panic(err)
 	}
 	Properties.AbsPath = abs
-
 }
