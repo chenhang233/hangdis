@@ -16,12 +16,18 @@ func TestTcp(t *testing.T) {
 }
 
 func TestClientDial(t *testing.T) {
-	dial, err := net.Dial("tcp", "127.0.0.1:8888")
-	if err != nil {
-		println(err)
-		return
+	for i := 0; i < 10; i++ {
+		go func() {
+			dial, err := net.Dial("tcp", "127.0.0.1:8888")
+			if err != nil {
+				println(err)
+				return
+			}
+			str := "hello world"
+			dial.Write([]byte(str))
+		}()
 	}
-	str := "hello world"
-	dial.Write([]byte(str))
-	dial.Close()
+	for {
+
+	}
 }

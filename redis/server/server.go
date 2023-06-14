@@ -25,8 +25,20 @@ func MakeHandler() *Handler {
 	return h
 }
 
-func (h *Handler) Handle(ctx context.Context, conn net.Conn) {
+func (h *Handler) closeClient(client *connection.Connection) {
+	_ = client.Close()
+	h.db.AfterClientClose(client)
+	h.activeConn.Delete(client)
+}
 
+func (h *Handler) Handle(ctx context.Context, conn net.Conn) {
+	if h.closing {
+		_ = conn.Close()
+		return
+	}
+
+	client := connection.NewConn(conn)
+	h.activeConn.Store(client, struct{}{})
 }
 
 func (h *Handler) Close() error {
