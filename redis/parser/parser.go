@@ -8,6 +8,7 @@ import (
 	"hangdis/redis/protocol"
 	"hangdis/utils/logs"
 	"io"
+	"strconv"
 )
 
 type Payload struct {
@@ -40,7 +41,7 @@ func parse(rawReader io.Reader, ch chan<- *Payload) {
 		case '-':
 			ch <- &Payload{Data: protocol.MakeErrReply(string(line[1:]))}
 		case '*':
-			err := parseArray(line, rawReader, ch)
+			err := parseArray(line, reader, ch)
 			if err != nil {
 				ch <- &Payload{Err: err}
 				return
@@ -52,11 +53,40 @@ func parse(rawReader io.Reader, ch chan<- *Payload) {
 	}
 }
 
-func parseArray(line []byte, reader io.Reader, ch chan<- *Payload) error {
-
-}
-
-func protocolError(ch chan<- *Payload, msg string) {
-	err := errors.New("protocol error: " + msg)
-	ch <- &Payload{Err: err}
+func parseArray(line []byte, reader *bufio.Reader, ch chan<- *Payload) error {
+	num, err := strconv.ParseInt(string(line[1:]), 10, 64)
+	if err != nil {
+		return err
+	} else if num < 0 || num == 0 {
+		return errors.New("illegal array header " + string(line[1:]))
+	}
+	lines := make([][]byte, 0, num)
+	for i := int64(0); i < num; i++ {
+		line, err := reader.ReadBytes('\n')
+		l := len(line)
+		if err != nil {
+			return err
+		}
+		if l < 4 || line[0] != '$' || line[l-2] != '\r' {
+			return errors.New("illegal bulk string header" + string(line))
+		}
+		strLen, err := strconv.ParseInt(string(line[1:l-2]), 10, 64)
+		if err != nil {
+			return err
+		}
+		if strLen < -1 {
+			return errors.New("illegal bulk string header" + string(line))
+		} else if strLen == 0 || strLen == -1 {
+			lines = append(lines, []byte{})
+		} else {
+			body := make([]byte, strLen+2)
+			_, err = io.ReadFull(reader, body)
+			if err != nil {
+				return err
+			}
+			lines = append(lines, body[:len(body)-2])
+		}
+	}
+	ch <- &Payload{Data: protocol.MakeMultiBulkReply(lines)}
+	return nil
 }

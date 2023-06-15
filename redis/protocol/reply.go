@@ -46,6 +46,10 @@ func MakeEmptyMultiBulkReply() *EmptyMultiBulkReply {
 	return &EmptyMultiBulkReply{}
 }
 
+func (r *EmptyMultiBulkReply) ToBytes() []byte {
+	return []byte("empty")
+}
+
 type StandardErrReply struct {
 	Status string
 }

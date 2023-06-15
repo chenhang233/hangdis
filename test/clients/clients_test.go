@@ -5,12 +5,14 @@ import (
 	"bytes"
 	"fmt"
 	"hangdis/redis/protocol"
+	"io"
 	"net"
 	"testing"
+	"time"
 )
 
 func TestTcp(t *testing.T) {
-	listen, err := net.Listen("tcp", "127.0.0.1:8000")
+	listen, err := net.Listen("tcp", "127.0.0.1:8888")
 	if err != nil {
 		println(err)
 		return
@@ -20,19 +22,27 @@ func TestTcp(t *testing.T) {
 }
 
 func TestClientDial(t *testing.T) {
-	for i := 0; i < 10; i++ {
-		go func() {
-			dial, err := net.Dial("tcp", "127.0.0.1:8888")
-			if err != nil {
-				println(err)
-				return
-			}
-			str := "hello world"
-			dial.Write([]byte(str))
-		}()
+	//for i := 0; i < 5; i++ {
+	//	go func() {
+	//
+	//	}()
+	//}
+	dial, _ := net.Dial("tcp", "127.0.0.1:8888")
+	mu := &protocol.MultiBulkReply{
+		Args: [][]byte{
+			[]byte("SET"),
+			[]byte("a"),
+			[]byte("a"),
+		},
 	}
-	for {
+	b := mu.ToBytes()
 
+	for {
+		time.Sleep(time.Second * 2)
+		dial.Write(b)
+		bys := make([]byte, 1024)
+		dial.Read(bys)
+		fmt.Println(string(bys))
 	}
 }
 
@@ -51,4 +61,19 @@ func TestMultiBulkReply(t *testing.T) {
 	args := bytes.Split(line, []byte{' '})
 	fmt.Println(args)
 	protocol.MakeMultiBulkReply(args)
+}
+
+func TestReadFull(t *testing.T) {
+	mu := &protocol.MultiBulkReply{
+		Args: [][]byte{
+			[]byte("SET"),
+			[]byte("a"),
+			[]byte("a"),
+		},
+	}
+	b := mu.ToBytes()
+	reader := bytes.NewReader(b)
+	bys := make([]byte, 3)
+	io.ReadFull(reader, bys)
+	fmt.Println(bys, " bys ", string(bys))
 }

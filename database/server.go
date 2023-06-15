@@ -4,6 +4,7 @@ import (
 	"hangdis/config"
 	"hangdis/interface/database"
 	"hangdis/interface/redis"
+	"hangdis/redis/protocol"
 	"sync/atomic"
 	"time"
 )
@@ -40,7 +41,7 @@ func NewStandaloneServer() *Server {
 }
 
 func (server *Server) Exec(c redis.Connection, cmdLine [][]byte) (result redis.Reply) {
-	return nil
+	return protocol.MakeEmptyMultiBulkReply()
 }
 
 func (server *Server) AfterClientClose(c redis.Connection) {
