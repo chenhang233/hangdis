@@ -17,8 +17,9 @@ type ServerProperties struct {
 	BindAddr   string
 	MaxClients int `conf:"maxClients"`
 	AbsPath    string
-	AppendOnly bool `conf:"appendonly"`
-	Databases  int  `conf:"databases"`
+	AppendOnly bool   `conf:"appendonly"`
+	Databases  int    `conf:"databases"`
+	Password   string `conf:"requirepass"`
 }
 
 var Properties *ServerProperties

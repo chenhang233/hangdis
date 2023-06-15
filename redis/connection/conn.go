@@ -24,6 +24,10 @@ var connPool = sync.Pool{
 	},
 }
 
+func (c *Connection) RemoteAddr() net.Addr {
+	return c.conn.RemoteAddr()
+}
+
 func (c *Connection) Close() error {
 	c.password = ""
 	c.queue = nil

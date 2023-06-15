@@ -1,6 +1,10 @@
 package clients
 
 import (
+	"bufio"
+	"bytes"
+	"fmt"
+	"hangdis/redis/protocol"
 	"net"
 	"testing"
 )
@@ -30,4 +34,21 @@ func TestClientDial(t *testing.T) {
 	for {
 
 	}
+}
+
+func TestMultiBulkReply(t *testing.T) {
+
+	mu := &protocol.MultiBulkReply{
+		Args: [][]byte{
+			[]byte("INFO"),
+		},
+	}
+	b := mu.ToBytes()
+	reader := bytes.NewReader(b)
+	r := bufio.NewReader(reader)
+	line, _ := r.ReadBytes('\n')
+	fmt.Println(line, "line", string(line), line[0] == '*')
+	args := bytes.Split(line, []byte{' '})
+	fmt.Println(args)
+	protocol.MakeMultiBulkReply(args)
 }

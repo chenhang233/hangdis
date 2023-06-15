@@ -5,7 +5,10 @@ import (
 	database2 "hangdis/database"
 	"hangdis/interface/database"
 	"hangdis/redis/connection"
+	"hangdis/redis/parser"
+	"hangdis/redis/protocol"
 	"hangdis/utils/logs"
+	"io"
 	"net"
 	"sync"
 )
@@ -36,9 +39,45 @@ func (h *Handler) Handle(ctx context.Context, conn net.Conn) {
 		_ = conn.Close()
 		return
 	}
-
 	client := connection.NewConn(conn)
 	h.activeConn.Store(client, struct{}{})
+	stream := parser.ParseStream(conn)
+	var err error
+	for payload := range stream {
+		if payload.Err != nil {
+			if payload.Err == io.EOF || payload.Err == io.ErrUnexpectedEOF {
+				h.closeClient(client)
+				logs.LOG.Warn.Println("client closed" + client.RemoteAddr().String())
+				return
+			}
+			reply := protocol.MakeErrReply(payload.Err.Error())
+			_, err = client.Write(reply.ToBytes())
+			if err != nil {
+				h.closeClient(client)
+				logs.LOG.Warn.Println("client closed" + client.RemoteAddr().String())
+				return
+			}
+			continue
+		}
+		if payload.Data == nil {
+			logs.LOG.Warn.Println("empty payload data")
+			continue
+		}
+		mu, ok := payload.Data.(*protocol.MultiBulkReply)
+		if !ok {
+			logs.LOG.Error.Println("require MultiBulkReply protocol")
+		}
+		exec := h.db.Exec(client, mu.Args)
+		if exec != nil {
+			_, err = client.Write(exec.ToBytes())
+		} else {
+			_, err = client.Write(protocol.UnknownErrReplyBytes)
+		}
+
+		if err != nil {
+			logs.LOG.Error.Println(err)
+		}
+	}
 }
 
 func (h *Handler) Close() error {

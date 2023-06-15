@@ -7,7 +7,8 @@ import (
 )
 
 var (
-	CRLF = "\r\n"
+	CRLF                 = "\r\n"
+	UnknownErrReplyBytes = []byte("-ERR unknown\r\n")
 )
 
 type MultiBulkReply struct {
@@ -20,6 +21,10 @@ func MakeMultiBulkReply(args [][]byte) *MultiBulkReply {
 	}
 }
 
+/*
+ToBytes
+SET a a 传输格式: *3 $3 SET $1 a $1 a
+*/
 func (r *MultiBulkReply) ToBytes() []byte {
 	argLen := len(r.Args)
 	var buf bytes.Buffer
@@ -31,6 +36,26 @@ func (r *MultiBulkReply) ToBytes() []byte {
 			buf.WriteString("$" + strconv.Itoa(len(arg)) + CRLF + string(arg) + CRLF)
 		}
 	}
-	fmt.Println(buf, "---buf")
+	fmt.Println(buf.String(), "   38")
 	return buf.Bytes()
+}
+
+type EmptyMultiBulkReply struct{}
+
+func MakeEmptyMultiBulkReply() *EmptyMultiBulkReply {
+	return &EmptyMultiBulkReply{}
+}
+
+type StandardErrReply struct {
+	Status string
+}
+
+func MakeErrReply(status string) *StandardErrReply {
+	return &StandardErrReply{
+		Status: status,
+	}
+}
+
+func (r *StandardErrReply) ToBytes() []byte {
+	return []byte("-" + r.Status + CRLF)
 }
