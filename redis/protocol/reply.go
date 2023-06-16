@@ -50,6 +50,18 @@ func (r *EmptyMultiBulkReply) ToBytes() []byte {
 	return []byte("empty")
 }
 
+type PongReply struct{}
+
+var pongBytes = []byte("+PONG\r\n")
+
+func MakePongReply() *PongReply {
+	return &PongReply{}
+}
+
+func (r *PongReply) ToBytes() []byte {
+	return pongBytes
+}
+
 type StandardErrReply struct {
 	Status string
 }

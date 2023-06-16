@@ -5,6 +5,7 @@ import (
 	"hangdis/interface/database"
 	"hangdis/interface/redis"
 	"hangdis/redis/protocol"
+	"strings"
 	"sync/atomic"
 	"time"
 )
@@ -18,6 +19,10 @@ type Server struct {
 	//role int32
 	//slaveStatus  *slaveStatus
 	//masterStatus *masterStatus
+}
+
+func init() {
+	RegisterSystemCommand("PING", Ping)
 }
 
 func NewStandaloneServer() *Server {
@@ -41,6 +46,11 @@ func NewStandaloneServer() *Server {
 }
 
 func (server *Server) Exec(c redis.Connection, cmdLine [][]byte) (result redis.Reply) {
+	cmdName := strings.ToLower(string(cmdLine[0]))
+	if sysCmd, ok := systemTable[cmdName]; ok {
+		exec := sysCmd.executor
+		return exec(c, cmdLine[1:])
+	}
 	return protocol.MakeEmptyMultiBulkReply()
 }
 
