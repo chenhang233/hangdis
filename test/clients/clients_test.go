@@ -46,6 +46,11 @@ func TestClientDial(t *testing.T) {
 			[]byte("INFO"),
 		},
 	}
+	mu = &protocol.MultiBulkReply{
+		Args: [][]byte{
+			[]byte("AUTH 123456"),
+		},
+	}
 	b := mu.ToBytes()
 
 	for {

@@ -72,3 +72,18 @@ func InfoString(section string) []byte {
 	}
 	return []byte(s)
 }
+
+func Auth(c redis.Connection, args [][]byte) redis.Reply {
+	if len(args) != 2 {
+		return protocol.MakeErrReply("ERR wrong number of arguments for 'auth' command")
+	}
+	p := config.Properties.Password
+	if p == "" {
+		return protocol.MakeStatusReply("No password")
+	} else if string(args[1]) != p {
+		return protocol.MakeErrReply("ERR invalid password")
+	} else {
+		c.SetPassword(p)
+		return protocol.MakeOkReply()
+	}
+}

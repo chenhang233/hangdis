@@ -59,3 +59,8 @@
 [debug]2023/06/16 17:24:54 server.go:55: get exit signal
 [debug]2023/06/16 17:24:54 server.go:84: handler close ...
 [warn]2023/06/16 17:24:54 server.go:57: client closed127.0.0.1:57636
+[info]2023/06/16 17:51:30 server.go:44: bind: 0.0.0.0:8888, start listening...
+[info]2023/06/16 17:51:36 server.go:74: client link: 127.0.0.1:58765
+[warn]2023/06/16 17:51:57 server.go:57: client closed127.0.0.1:58765
+[info]2023/06/16 17:51:57 server.go:81: client leave: 127.0.0.1:58765
+[debug]2023/06/16 17:51:59 server.go:55: get exit signal

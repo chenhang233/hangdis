@@ -24,6 +24,7 @@ type Server struct {
 func init() {
 	RegisterSystemCommand("PING", Ping)
 	RegisterSystemCommand("INFO", Info)
+	RegisterSystemCommand("AUTH", Auth)
 }
 
 func NewStandaloneServer() *Server {

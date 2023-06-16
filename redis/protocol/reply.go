@@ -2,7 +2,6 @@ package protocol
 
 import (
 	"bytes"
-	"fmt"
 	"strconv"
 )
 
@@ -54,7 +53,6 @@ func (r *MultiBulkReply) ToBytes() []byte {
 			buf.WriteString("$" + strconv.Itoa(len(arg)) + CRLF + string(arg) + CRLF)
 		}
 	}
-	fmt.Println(buf.String(), "   38")
 	return buf.Bytes()
 }
 
@@ -92,4 +90,31 @@ func MakeErrReply(status string) *StandardErrReply {
 
 func (r *StandardErrReply) ToBytes() []byte {
 	return []byte("-" + r.Status + CRLF)
+}
+
+type StandardStatusReply struct {
+	Status string
+}
+
+func MakeStatusReply(status string) *StandardStatusReply {
+	return &StandardStatusReply{
+		Status: status,
+	}
+}
+
+func (r *StandardStatusReply) ToBytes() []byte {
+	return []byte("+" + r.Status + CRLF)
+}
+
+type OkReply struct{}
+
+var okBytes = []byte("+OK\r\n")
+
+// ToBytes marshal redis.Reply
+func (r *OkReply) ToBytes() []byte {
+	return okBytes
+}
+
+func MakeOkReply() *OkReply {
+	return &OkReply{}
 }
