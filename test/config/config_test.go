@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"hangdis/utils"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -23,4 +24,8 @@ func TestRand(t *testing.T) {
 func TestStrTrimLeft(t *testing.T) {
 	left := strings.TrimLeft("     # 你好", " ")
 	fmt.Println(left)
+}
+
+func TestSys(t *testing.T) {
+	fmt.Println(runtime.GOOS, runtime.GOARCH)
 }

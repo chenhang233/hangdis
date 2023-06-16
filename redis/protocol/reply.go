@@ -9,7 +9,25 @@ import (
 var (
 	CRLF                 = "\r\n"
 	UnknownErrReplyBytes = []byte("-ERR unknown\r\n")
+	nullBulkBytes        = []byte("$-1\r\n")
 )
+
+type BulkReply struct {
+	Arg []byte
+}
+
+func MakeBulkReply(arg []byte) *BulkReply {
+	return &BulkReply{
+		Arg: arg,
+	}
+}
+
+func (r *BulkReply) ToBytes() []byte {
+	if r.Arg == nil {
+		return nullBulkBytes
+	}
+	return []byte("$" + strconv.Itoa(len(r.Arg)) + CRLF + string(r.Arg) + CRLF)
+}
 
 type MultiBulkReply struct {
 	Args [][]byte
@@ -47,7 +65,7 @@ func MakeEmptyMultiBulkReply() *EmptyMultiBulkReply {
 }
 
 func (r *EmptyMultiBulkReply) ToBytes() []byte {
-	return []byte("empty")
+	return []byte("")
 }
 
 type PongReply struct{}

@@ -23,6 +23,7 @@ type Server struct {
 
 func init() {
 	RegisterSystemCommand("PING", Ping)
+	RegisterSystemCommand("INFO", Info)
 }
 
 func NewStandaloneServer() *Server {
@@ -49,7 +50,7 @@ func (server *Server) Exec(c redis.Connection, cmdLine [][]byte) (result redis.R
 	cmdName := strings.ToLower(string(cmdLine[0]))
 	if sysCmd, ok := systemTable[cmdName]; ok {
 		exec := sysCmd.executor
-		return exec(c, cmdLine[1:])
+		return exec(c, cmdLine)
 	}
 	return protocol.MakeEmptyMultiBulkReply()
 }

@@ -6,3 +6,56 @@
 [warn]2023/06/16 16:25:14 server.go:57: client closed127.0.0.1:55339
 [info]2023/06/16 16:25:14 server.go:81: client leave: 127.0.0.1:55339
 [debug]2023/06/16 16:25:18 server.go:55: get exit signal
+[info]2023/06/16 17:16:38 server.go:44: bind: 0.0.0.0:8888, start listening...
+[info]2023/06/16 17:16:44 server.go:74: client link: 127.0.0.1:57269
+[warn]2023/06/16 17:16:52 server.go:57: client closed127.0.0.1:57269
+[info]2023/06/16 17:16:52 server.go:81: client leave: 127.0.0.1:57269
+[debug]2023/06/16 17:17:32 server.go:55: get exit signal
+[info]2023/06/16 17:17:35 server.go:44: bind: 0.0.0.0:8888, start listening...
+[info]2023/06/16 17:17:41 server.go:74: client link: 127.0.0.1:57298
+[warn]2023/06/16 17:18:01 server.go:57: client closed127.0.0.1:57298
+[info]2023/06/16 17:18:01 server.go:81: client leave: 127.0.0.1:57298
+[info]2023/06/16 17:18:05 server.go:74: client link: 127.0.0.1:57311
+[warn]2023/06/16 17:18:28 server.go:57: client closed127.0.0.1:57311
+[info]2023/06/16 17:18:28 server.go:81: client leave: 127.0.0.1:57311
+[debug]2023/06/16 17:19:05 server.go:55: get exit signal
+[info]2023/06/16 17:19:08 server.go:44: bind: 0.0.0.0:8888, start listening...
+[info]2023/06/16 17:19:14 server.go:74: client link: 127.0.0.1:57351
+[warn]2023/06/16 17:19:21 server.go:57: client closed127.0.0.1:57351
+[info]2023/06/16 17:19:21 server.go:81: client leave: 127.0.0.1:57351
+[debug]2023/06/16 17:20:24 server.go:55: get exit signal
+[info]2023/06/16 17:20:26 server.go:44: bind: 0.0.0.0:8888, start listening...
+[info]2023/06/16 17:20:33 server.go:74: client link: 127.0.0.1:57388
+[warn]2023/06/16 17:20:45 server.go:57: client closed127.0.0.1:57388
+[info]2023/06/16 17:20:45 server.go:81: client leave: 127.0.0.1:57388
+[debug]2023/06/16 17:21:13 server.go:55: get exit signal
+[info]2023/06/16 17:21:16 server.go:44: bind: 0.0.0.0:8888, start listening...
+[info]2023/06/16 17:21:19 server.go:74: client link: 127.0.0.1:57417
+[warn]2023/06/16 17:21:29 server.go:57: client closed127.0.0.1:57417
+[info]2023/06/16 17:21:29 server.go:81: client leave: 127.0.0.1:57417
+[debug]2023/06/16 17:21:31 server.go:55: get exit signal
+[info]2023/06/16 17:22:28 server.go:44: bind: 0.0.0.0:8888, start listening...
+[info]2023/06/16 17:22:33 server.go:75: client link: 127.0.0.1:57454
+[warn]2023/06/16 17:22:38 server.go:57: client closed127.0.0.1:57454
+[info]2023/06/16 17:22:38 server.go:82: client leave: 127.0.0.1:57454
+[debug]2023/06/16 17:23:07 server.go:55: get exit signal
+[info]2023/06/16 17:23:10 server.go:44: bind: 0.0.0.0:8888, start listening...
+[info]2023/06/16 17:23:13 server.go:74: client link: 127.0.0.1:57488
+[warn]2023/06/16 17:23:18 server.go:59: client closed127.0.0.1:57488
+[info]2023/06/16 17:23:18 server.go:81: client leave: 127.0.0.1:57488
+[debug]2023/06/16 17:23:25 server.go:55: get exit signal
+[info]2023/06/16 17:23:27 server.go:44: bind: 0.0.0.0:8888, start listening...
+[info]2023/06/16 17:23:32 server.go:74: client link: 127.0.0.1:57534
+[warn]2023/06/16 17:23:36 server.go:59: client closed127.0.0.1:57534
+[info]2023/06/16 17:23:36 server.go:81: client leave: 127.0.0.1:57534
+[debug]2023/06/16 17:23:39 server.go:55: get exit signal
+[info]2023/06/16 17:24:13 server.go:44: bind: 0.0.0.0:8888, start listening...
+[info]2023/06/16 17:24:16 server.go:74: client link: 127.0.0.1:57589
+[warn]2023/06/16 17:24:22 server.go:57: client closed127.0.0.1:57589
+[info]2023/06/16 17:24:22 server.go:81: client leave: 127.0.0.1:57589
+[debug]2023/06/16 17:24:37 server.go:55: get exit signal
+[info]2023/06/16 17:24:40 server.go:44: bind: 0.0.0.0:8888, start listening...
+[info]2023/06/16 17:24:44 server.go:74: client link: 127.0.0.1:57636
+[debug]2023/06/16 17:24:54 server.go:55: get exit signal
+[debug]2023/06/16 17:24:54 server.go:84: handler close ...
+[warn]2023/06/16 17:24:54 server.go:57: client closed127.0.0.1:57636

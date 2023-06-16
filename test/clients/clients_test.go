@@ -41,12 +41,17 @@ func TestClientDial(t *testing.T) {
 			[]byte("哈哈哈哈"),
 		},
 	}
+	mu = &protocol.MultiBulkReply{
+		Args: [][]byte{
+			[]byte("INFO"),
+		},
+	}
 	b := mu.ToBytes()
 
 	for {
 		time.Sleep(time.Second * 2)
 		dial.Write(b)
-		bys := make([]byte, 100)
+		bys := make([]byte, 1024)
 		dial.Read(bys)
 		fmt.Println(string(bys))
 	}
