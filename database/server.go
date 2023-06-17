@@ -49,11 +49,21 @@ func NewStandaloneServer() *Server {
 
 func (server *Server) Exec(c redis.Connection, cmdLine [][]byte) (result redis.Reply) {
 	cmdName := strings.ToLower(string(cmdLine[0]))
+	if !isAuthenticated(c, cmdName) {
+		return protocol.MakeErrReply("Authentication required")
+	}
 	if sysCmd, ok := systemTable[cmdName]; ok {
 		exec := sysCmd.executor
 		return exec(c, cmdLine)
 	}
 	return protocol.MakeEmptyMultiBulkReply()
+}
+
+func isAuthenticated(c redis.Connection, cmdName string) bool {
+	if config.Properties.Password == "" || cmdName == "auth" {
+		return true
+	}
+	return c.GetPassword() == config.Properties.Password
 }
 
 func (server *Server) AfterClientClose(c redis.Connection) {

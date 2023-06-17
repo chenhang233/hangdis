@@ -48,17 +48,50 @@ func TestClientDial(t *testing.T) {
 	}
 	mu = &protocol.MultiBulkReply{
 		Args: [][]byte{
-			[]byte("AUTH 123456"),
+			[]byte("AUTH"),
+			[]byte("hang"),
 		},
 	}
 	b := mu.ToBytes()
-
+	go func() {
+		reader := bufio.NewReader(dial)
+		for {
+			readBytes, err := reader.ReadBytes('\n')
+			if err != nil {
+				fmt.Println(err, "---")
+				break
+			}
+			fmt.Println(string(readBytes))
+		}
+	}()
 	for {
 		time.Sleep(time.Second * 2)
 		dial.Write(b)
-		bys := make([]byte, 1024)
-		dial.Read(bys)
-		fmt.Println(string(bys))
+	}
+}
+
+func TestAuth(t *testing.T) {
+	dial, _ := net.Dial("tcp", "127.0.0.1:8888")
+	mu := &protocol.MultiBulkReply{
+		Args: [][]byte{
+			[]byte("INFO"),
+		},
+	}
+	b := mu.ToBytes()
+	go func() {
+		reader := bufio.NewReader(dial)
+		for {
+			readBytes, err := reader.ReadBytes('\n')
+			if err != nil {
+				fmt.Println(err, "---")
+				break
+			}
+			fmt.Println(string(readBytes))
+		}
+	}()
+	for {
+		time.Sleep(time.Second * 2)
+		dial.Write(b)
 	}
 }
 
