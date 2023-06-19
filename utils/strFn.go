@@ -10,12 +10,16 @@ const words = "qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM"
 
 const defaultConn = 10
 
-func RandomUUID() string {
+func RandomWordsIndex() int {
 	nR := rand.New(rand.NewSource(time.Now().UnixNano()))
-	wlen := len(words)
+	wLen := len(words)
+	return nR.Intn(wLen - 1)
+}
+
+func RandomUUID() string {
 	sb := strings.Builder{}
 	for i := 0; i < 20; i++ {
-		u := words[nR.Intn(wlen-1)]
+		u := words[RandomWordsIndex()]
 		sb.WriteByte(u)
 	}
 	return sb.String()
@@ -34,4 +38,8 @@ func ToCmdLine(cmd ...string) [][]byte {
 		args[i] = []byte(s)
 	}
 	return args
+}
+
+func GetExpireTaskName(key string) string {
+	return "expire:" + key
 }
