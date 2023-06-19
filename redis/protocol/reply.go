@@ -63,7 +63,7 @@ func MakeEmptyMultiBulkReply() *EmptyMultiBulkReply {
 }
 
 func (r *EmptyMultiBulkReply) ToBytes() []byte {
-	return []byte("")
+	return nullBulkBytes
 }
 
 type PongReply struct{}

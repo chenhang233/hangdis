@@ -5,6 +5,7 @@ import (
 	"hangdis/interface/database"
 	"hangdis/interface/redis"
 	"hangdis/redis/protocol"
+	"hangdis/utils/logs"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -19,12 +20,6 @@ type Server struct {
 	//role int32
 	//slaveStatus  *slaveStatus
 	//masterStatus *masterStatus
-}
-
-func init() {
-	RegisterSystemCommand("PING", Ping)
-	RegisterSystemCommand("INFO", Info)
-	RegisterSystemCommand("AUTH", Auth)
 }
 
 func NewStandaloneServer() *Server {
@@ -56,7 +51,20 @@ func (server *Server) Exec(c redis.Connection, cmdLine [][]byte) (result redis.R
 		exec := sysCmd.executor
 		return exec(c, cmdLine)
 	}
-	return protocol.MakeEmptyMultiBulkReply()
+	index := c.GetDBIndex()
+	db, err := server.selectDB(index)
+	if err != nil {
+		logs.LOG.Error.Println(err)
+		return err
+	}
+	return db.Exec(c, cmdLine)
+}
+
+func (server *Server) selectDB(dbIndex int) (*DB, *protocol.StandardErrReply) {
+	if dbIndex >= len(server.dbSet) || dbIndex < 0 {
+		return nil, protocol.MakeErrReply("ERR DB index is out of range")
+	}
+	return server.dbSet[dbIndex].Load().(*DB), nil
 }
 
 func isAuthenticated(c redis.Connection, cmdName string) bool {

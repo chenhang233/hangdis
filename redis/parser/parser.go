@@ -38,9 +38,9 @@ func parse(rawReader io.Reader, ch chan<- *Payload) {
 		}
 		line = bytes.TrimSuffix(line, []byte{'\r', '\n'})
 		switch line[0] {
-		case '-':
+		case '-': // representative error
 			ch <- &Payload{Data: protocol.MakeErrReply(string(line[1:]))}
-		case '*':
+		case '*': // representative MultiBulkReply
 			err := parseArray(line, reader, ch)
 			if err != nil {
 				ch <- &Payload{Err: err}

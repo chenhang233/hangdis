@@ -18,6 +18,7 @@ type DB struct {
 	data       dict.Dict
 	ttlMap     dict.Dict
 	versionMap dict.Dict
+	addAof     func(CmdLine)
 }
 
 type ExecFunc func(db *DB, args [][]byte) redis.Reply
@@ -32,9 +33,42 @@ type UndoFunc func(db *DB, args [][]byte) []CmdLine
 
 func makeDB() *DB {
 	return &DB{
-		index: 0,
-		data:  dict.MakeConcurrent(dataDictSize),
+		index:      0,
+		data:       dict.MakeConcurrent(dataDictSize),
+		ttlMap:     dict.MakeConcurrent(ttlDictSize),
+		versionMap: dict.MakeConcurrent(dataDictSize),
+		addAof:     func(line CmdLine) {},
 	}
+}
+
+func (db *DB) GetEntity(key string) (*database.DataEntity, bool) {
+	row, exists := db.data.Get(key)
+	if !exists {
+		return nil, false
+	}
+	if db.IsExpired(key) {
+		return nil, false
+	}
+	entity := row.(*database.DataEntity)
+	return entity, true
+}
+
+func (db *DB) IsExpired(key string) bool {
+	val, exists := db.ttlMap.Get(key)
+	if !exists {
+		return false
+	}
+	t := val.(time.Time)
+	after := time.Now().After(t)
+	if after {
+		db.Remove(key)
+	}
+	return after
+}
+
+func (db *DB) Remove(key string) {
+	db.data.Remove(key)
+	db.ttlMap.Remove(key)
 }
 
 func (db *DB) AfterClientClose(c redis.Connection) {
