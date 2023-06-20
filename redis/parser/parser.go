@@ -38,12 +38,25 @@ func parse(rawReader io.Reader, ch chan<- *Payload) {
 		}
 		line = bytes.TrimSuffix(line, []byte{'\r', '\n'})
 		switch line[0] {
-		case '-': // representative error
+		case '+': // representative ping/pong reply
+			content := string(line[1:])
+			ch <- &Payload{
+				Data: protocol.MakeStatusReply(content),
+			}
+		case '-': // representative error reply
 			ch <- &Payload{Data: protocol.MakeErrReply(string(line[1:]))}
-		case '*': // representative MultiBulkReply
-			err := parseArray(line, reader, ch)
+		case '$': // representative get reply/null reply
+			err = parseBulkString(line, reader, ch)
 			if err != nil {
 				ch <- &Payload{Err: err}
+				close(ch)
+				return
+			}
+		case '*': // representative MultiBulkReply
+			err = parseArray(line, reader, ch)
+			if err != nil {
+				ch <- &Payload{Err: err}
+				close(ch)
 				return
 			}
 		default:
@@ -88,5 +101,21 @@ func parseArray(line []byte, reader *bufio.Reader, ch chan<- *Payload) error {
 		}
 	}
 	ch <- &Payload{Data: protocol.MakeMultiBulkReply(lines)}
+	return nil
+}
+
+func parseBulkString(header []byte, reader *bufio.Reader, ch chan<- *Payload) error {
+	num, err := strconv.ParseInt(string(header[1:]), 10, 64)
+	if err != nil {
+		return err
+	} else if num < 0 || num == 0 {
+		return errors.New("illegal array header " + string(header[1:]))
+	}
+	body := make([]byte, num+2)
+	_, err = io.ReadFull(reader, body)
+	if err != nil {
+		return err
+	}
+	ch <- &Payload{Data: protocol.MakeBulkReply(body[:len(body)-2])}
 	return nil
 }
