@@ -20,3 +20,8 @@ func writeFirstKey(args [][]byte) ([]string, []string) {
 	key := string(args[0])
 	return []string{key}, nil
 }
+
+func readFirstKey(args [][]byte) ([]string, []string) {
+	key := string(args[0])
+	return nil, []string{key}
+}

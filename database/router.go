@@ -15,9 +15,9 @@ type systemCommand struct {
 type command struct {
 	executor ExecFunc
 	prepare  PreFunc
-	undo     UndoFunc
-	arity    int
-	flags    int
+	undo     UndoFunc // Regression function
+	arity    int      // arity < 0 means len(args) >= -arity
+	flags    int      //  Read only or not
 }
 
 var (

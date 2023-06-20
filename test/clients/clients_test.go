@@ -22,11 +22,6 @@ func TestTcp(t *testing.T) {
 }
 
 func TestClientDial(t *testing.T) {
-	//for i := 0; i < 5; i++ {
-	//	go func() {
-	//
-	//	}()
-	//}
 	dial, _ := net.Dial("tcp", "127.0.0.1:8888")
 	mu := &protocol.MultiBulkReply{
 		Args: [][]byte{
@@ -35,23 +30,23 @@ func TestClientDial(t *testing.T) {
 			[]byte("a"),
 		},
 	}
-	mu = &protocol.MultiBulkReply{
-		Args: [][]byte{
-			[]byte("PING"),
-			[]byte("哈哈哈哈"),
-		},
-	}
-	mu = &protocol.MultiBulkReply{
-		Args: [][]byte{
-			[]byte("INFO"),
-		},
-	}
-	mu = &protocol.MultiBulkReply{
-		Args: [][]byte{
-			[]byte("AUTH"),
-			[]byte("hang"),
-		},
-	}
+	//mu = &protocol.MultiBulkReply{
+	//	Args: [][]byte{
+	//		[]byte("PING"),
+	//		[]byte("哈哈哈哈"),
+	//	},
+	//}
+	//mu = &protocol.MultiBulkReply{
+	//	Args: [][]byte{
+	//		[]byte("INFO"),
+	//	},
+	//}
+	//mu = &protocol.MultiBulkReply{
+	//	Args: [][]byte{
+	//		[]byte("AUTH"),
+	//		[]byte("hang"),
+	//	},
+	//}
 	b := mu.ToBytes()
 	go func() {
 		reader := bufio.NewReader(dial)

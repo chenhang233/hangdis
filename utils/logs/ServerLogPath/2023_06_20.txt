@@ -1,0 +1,10 @@
+[info]2023/06/20 10:21:33 server.go:44: bind: 0.0.0.0:8888, start listening...
+[info]2023/06/20 10:22:53 server.go:74: client link: 127.0.0.1:52176
+[warn]2023/06/20 10:23:01 server.go:57: client closed127.0.0.1:52176
+[info]2023/06/20 10:23:01 server.go:81: client leave: 127.0.0.1:52176
+[debug]2023/06/20 10:23:20 server.go:55: get exit signal
+[info]2023/06/20 10:23:22 server.go:44: bind: 0.0.0.0:8888, start listening...
+[info]2023/06/20 10:23:26 server.go:74: client link: 127.0.0.1:52205
+[warn]2023/06/20 10:23:33 server.go:57: client closed127.0.0.1:52205
+[info]2023/06/20 10:23:33 server.go:81: client leave: 127.0.0.1:52205
+[debug]2023/06/20 10:24:46 server.go:55: get exit signal

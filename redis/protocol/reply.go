@@ -20,7 +20,6 @@ func MakeBulkReply(arg []byte) *BulkReply {
 		Arg: arg,
 	}
 }
-
 func (r *BulkReply) ToBytes() []byte {
 	if r.Arg == nil {
 		return nullBulkBytes
@@ -61,7 +60,6 @@ type EmptyMultiBulkReply struct{}
 func MakeEmptyMultiBulkReply() *EmptyMultiBulkReply {
 	return &EmptyMultiBulkReply{}
 }
-
 func (r *EmptyMultiBulkReply) ToBytes() []byte {
 	return nullBulkBytes
 }
@@ -73,7 +71,6 @@ var pongBytes = []byte("+PONG\r\n")
 func MakePongReply() *PongReply {
 	return &PongReply{}
 }
-
 func (r *PongReply) ToBytes() []byte {
 	return pongBytes
 }
@@ -87,9 +84,21 @@ func MakeErrReply(status string) *StandardErrReply {
 		Status: status,
 	}
 }
-
 func (r *StandardErrReply) ToBytes() []byte {
 	return []byte("-" + r.Status + CRLF)
+}
+
+type SyntaxErrReply struct{}
+
+var syntaxErrBytes = []byte("-Err syntax error\r\n")
+
+func MakeSyntaxErrReply() *SyntaxErrReply {
+	return &SyntaxErrReply{}
+}
+
+// ToBytes marshals redis.Reply
+func (r *SyntaxErrReply) ToBytes() []byte {
+	return syntaxErrBytes
 }
 
 type StandardStatusReply struct {
@@ -101,7 +110,6 @@ func MakeStatusReply(status string) *StandardStatusReply {
 		Status: status,
 	}
 }
-
 func (r *StandardStatusReply) ToBytes() []byte {
 	return []byte("+" + r.Status + CRLF)
 }
@@ -114,7 +122,6 @@ var okBytes = []byte("+OK\r\n")
 func (r *OkReply) ToBytes() []byte {
 	return okBytes
 }
-
 func MakeOkReply() *OkReply {
 	return &OkReply{}
 }

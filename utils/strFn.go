@@ -40,6 +40,15 @@ func ToCmdLine(cmd ...string) [][]byte {
 	return args
 }
 
+func ToCmdLine3(commandName string, args ...[]byte) [][]byte {
+	result := make([][]byte, len(args)+1)
+	result[0] = []byte(commandName)
+	for i, s := range args {
+		result[i+1] = s
+	}
+	return result
+}
+
 func GetExpireTaskName(key string) string {
 	return "expire:" + key
 }
