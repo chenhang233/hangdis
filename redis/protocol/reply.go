@@ -125,3 +125,17 @@ func (r *OkReply) ToBytes() []byte {
 func MakeOkReply() *OkReply {
 	return &OkReply{}
 }
+
+type IntReply struct {
+	Code int64
+}
+
+func MakeIntReply(code int64) *IntReply {
+	return &IntReply{
+		Code: code,
+	}
+}
+
+func (r *IntReply) ToBytes() []byte {
+	return []byte(":" + strconv.FormatInt(r.Code, 10) + CRLF)
+}

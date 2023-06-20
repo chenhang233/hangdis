@@ -22,7 +22,7 @@ func TestClient(t *testing.T) {
 	if status, ok := res.(*protocol.StandardStatusReply); ok {
 		fmt.Println(status.Status)
 		if status.Status != "OK" {
-			t.Error("`set` failed, result: ")
+			t.Error("`set` failed")
 		}
 	}
 	res = c.Send([][]byte{
@@ -32,10 +32,32 @@ func TestClient(t *testing.T) {
 	if bulkRet, ok := res.(*protocol.BulkReply); ok {
 		fmt.Println(string(bulkRet.Arg))
 		if string(bulkRet.Arg) != "a" {
-			t.Error("`get` failed, result: ")
+			t.Error("`get` failed")
 		}
 	}
 
+	res = c.Send([][]byte{
+		[]byte("SETNX"),
+		[]byte("b"),
+		[]byte("hello world"),
+	})
+	if res, ok := res.(*protocol.IntReply); ok {
+		fmt.Println(res.Code)
+		if res.Code != 1 {
+			t.Error("`setnx` failed ")
+		}
+	}
+	res = c.Send([][]byte{
+		[]byte("SETNX"),
+		[]byte("b"),
+		[]byte("world hello"),
+	})
+	if res, ok := res.(*protocol.IntReply); ok {
+		fmt.Println(res.Code)
+		if res.Code != 0 {
+			t.Error("`setnx` failed ")
+		}
+	}
 	c.Close()
 
 }

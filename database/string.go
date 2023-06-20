@@ -87,6 +87,15 @@ func execSet(db *DB, args [][]byte) redis.Reply {
 	return protocol.MakeEmptyMultiBulkReply()
 }
 
+func execSetNX(db *DB, args [][]byte) redis.Reply {
+	key := string(args[0])
+	value := args[1]
+	entity := &database.DataEntity{Data: value}
+	ok := db.PutIfAbsent(key, entity)
+	db.addAof(utils.ToCmdLine3("setnx", args...))
+	return protocol.MakeIntReply(int64(ok))
+}
+
 func (db *DB) getAsString(key string) ([]byte, *protocol.SyntaxErrReply) {
 	entity, ok := db.GetEntity(key)
 	if !ok {
@@ -110,5 +119,6 @@ func execGet(db *DB, args [][]byte) redis.Reply {
 
 func init() {
 	RegisterCommand("SET", execSet, writeFirstKey, rollbackFirstKey, -3, flagWrite)
+	RegisterCommand("SETNx", execSetNX, writeFirstKey, rollbackFirstKey, -3, flagWrite)
 	RegisterCommand("GET", execGet, readFirstKey, nil, 2, flagReadOnly)
 }

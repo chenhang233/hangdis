@@ -45,6 +45,14 @@ func parse(rawReader io.Reader, ch chan<- *Payload) {
 			}
 		case '-': // representative error reply
 			ch <- &Payload{Data: protocol.MakeErrReply(string(line[1:]))}
+		case ':': // representative int reply
+			num, err := strconv.ParseInt(string(line[1:]), 10, 64)
+			if err != nil {
+				ch <- &Payload{Err: err}
+				close(ch)
+				return
+			}
+			ch <- &Payload{Data: protocol.MakeIntReply(num)}
 		case '$': // representative get reply/null reply
 			err = parseBulkString(line, reader, ch)
 			if err != nil {
