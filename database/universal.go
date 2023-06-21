@@ -3,6 +3,7 @@ package database
 import (
 	"hangdis/interface/redis"
 	"hangdis/redis/protocol"
+	"time"
 )
 
 func undoDel(db *DB, args [][]byte) []CmdLine {
@@ -15,7 +16,18 @@ func execDel(db *DB, args [][]byte) redis.Reply {
 }
 
 func execTTL(db *DB, args [][]byte) redis.Reply {
-	return protocol.MakeOkReply()
+	key := string(args[0])
+	_, e := db.GetEntity(key)
+	if !e {
+		return protocol.MakeIntReply(-2)
+	}
+	val, exists := db.ttlMap.Get(key)
+	if !exists {
+		return protocol.MakeIntReply(-1)
+	}
+	t := val.(time.Time)
+	ttl := t.Sub(time.Now())
+	return protocol.MakeIntReply(int64(ttl / time.Second))
 }
 
 func execKeys(db *DB, args [][]byte) redis.Reply {

@@ -51,10 +51,7 @@ func makeDB() *DB {
 
 func (db *DB) GetEntity(key string) (*database.DataEntity, bool) {
 	row, exists := db.data.Get(key)
-	if !exists {
-		return nil, false
-	}
-	if db.IsExpired(key) {
+	if !exists || db.IsExpired(key) {
 		return nil, false
 	}
 	entity := row.(*database.DataEntity)
