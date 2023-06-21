@@ -183,11 +183,89 @@ func execMSet(db *DB, args [][]byte) redis.Reply {
 	return &protocol.OkReply{}
 }
 
+func execMSetNX(db *DB, args [][]byte) redis.Reply {
+	n := len(args)
+	if n%2 != 0 {
+		return protocol.MakeSyntaxErrReply()
+	}
+	size := n / 2
+	var reply redis.Reply
+	reply = protocol.MakeIntReply(1)
+	for i := 0; i < size; i++ {
+		key := string(args[i*2])
+		val := args[i*2+1]
+		entity := &database.DataEntity{Data: val}
+		absent := db.PutIfAbsent(key, entity)
+		if absent == 0 {
+			reply = protocol.MakeIntReply(0)
+		}
+	}
+	db.addAof(utils.ToCmdLine3("msetnx", args...))
+	return reply
+}
+
+func execGetEX(db *DB, args [][]byte) redis.Reply {
+	key := string(args[0])
+	ttl := unlimitedTTL
+	bys, err := db.getAsString(key)
+	if err != nil {
+		return err
+	}
+	if bys == nil {
+		return protocol.MakeEmptyMultiBulkReply()
+	}
+	for i := 1; i < len(args); i++ {
+		arg := strings.ToUpper(string(args[i]))
+		if arg == "EX" || arg == "PX" {
+			if ttl != unlimitedTTL {
+				return protocol.MakeSyntaxErrReply()
+			}
+			if i+1 > len(args) {
+				return &protocol.SyntaxErrReply{}
+			}
+			num, err := strconv.ParseInt(string(args[i+1]), 10, 64)
+			if err != nil {
+				return protocol.MakeSyntaxErrReply()
+			}
+			if num <= 0 {
+				return protocol.MakeErrReply("ERR invalid expire time in getex")
+			}
+			if arg == "EX" {
+				num *= 1000
+			}
+			ttl = num
+			i++
+		} else if arg == "PERSIST" {
+			if ttl != unlimitedTTL {
+				return protocol.MakeSyntaxErrReply()
+			}
+			if i+1 > len(args) {
+				return &protocol.SyntaxErrReply{}
+			}
+		}
+	}
+	if len(args) > 1 {
+		if ttl != unlimitedTTL {
+			expireTime := time.Now().Add(time.Duration(ttl) * time.Millisecond)
+			db.Expire(key, expireTime)
+			db.addAof(aof.MakeExpireCmd(key, expireTime).Args)
+		} else {
+			db.Persist(key)
+			db.addAof(utils.ToCmdLine3("persist", args[0]))
+		}
+	}
+
+	return protocol.MakeBulkReply(bys)
+}
+
 func init() {
 	RegisterCommand("SET", execSet, writeFirstKey, rollbackFirstKey, -3, flagWrite)
 	RegisterCommand("SETNx", execSetNX, writeFirstKey, rollbackFirstKey, -3, flagWrite)
 	RegisterCommand("SETEx", execSetEX, writeFirstKey, rollbackFirstKey, 4, flagWrite)
 	RegisterCommand("PSetEX ", execPSetEX, writeFirstKey, rollbackFirstKey, 4, flagWrite)
 	RegisterCommand("MSet", execMSet, prepareMSet, undoMSet, -3, flagWrite)
+	RegisterCommand("MSetNX", execMSetNX, prepareMSet, undoMSet, -3, flagWrite)
 	RegisterCommand("GET", execGet, readFirstKey, nil, 2, flagReadOnly)
+	RegisterCommand("GetEX", execGetEX, writeFirstKey, rollbackFirstKey, -2, flagReadOnly)
+	//RegisterCommand("MGet", execMGet, prepareMGet, nil, -2, flagReadOnly)
 }
