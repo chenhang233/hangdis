@@ -137,7 +137,7 @@ func validateArity(arity int, cmdArgs [][]byte) bool {
 	if arity >= 0 {
 		return arity == n
 	}
-	return -arity >= n
+	return -arity <= n
 }
 
 func (db *DB) execNormalCommand(cmdLine [][]byte) redis.Reply {
@@ -147,7 +147,7 @@ func (db *DB) execNormalCommand(cmdLine [][]byte) redis.Reply {
 		return protocol.MakeErrReply("ERR command not found")
 	}
 	if !validateArity(cmd.arity, cmdLine) {
-		return protocol.MakeErrReply("ERR wrong number of arguments")
+		return protocol.MakeErrReply("Check error  wrong number of arguments")
 	}
 	prepare := cmd.prepare
 	write, read := prepare(cmdLine[1:])

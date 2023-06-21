@@ -153,10 +153,41 @@ func execGet(db *DB, args [][]byte) redis.Reply {
 	return protocol.MakeBulkReply(bys)
 }
 
+func prepareMSet(args [][]byte) ([]string, []string) {
+	size := len(args) / 2
+	keys := make([]string, size)
+	for i := 0; i < size; i++ {
+		keys[i] = string(args[2*i])
+	}
+	return keys, nil
+}
+
+func undoMSet(db *DB, args [][]byte) []CmdLine {
+	writeKeys, _ := prepareMSet(args)
+	return rollbackGivenKeys(db, writeKeys...)
+}
+
+func execMSet(db *DB, args [][]byte) redis.Reply {
+	n := len(args)
+	if n%2 != 0 {
+		return protocol.MakeSyntaxErrReply()
+	}
+	size := n / 2
+	for i := 0; i < size; i++ {
+		key := string(args[i*2])
+		val := args[i*2+1]
+		entity := &database.DataEntity{Data: val}
+		db.PutEntity(key, entity)
+	}
+	db.addAof(utils.ToCmdLine3("mset", args...))
+	return &protocol.OkReply{}
+}
+
 func init() {
 	RegisterCommand("SET", execSet, writeFirstKey, rollbackFirstKey, -3, flagWrite)
 	RegisterCommand("SETNx", execSetNX, writeFirstKey, rollbackFirstKey, -3, flagWrite)
 	RegisterCommand("SETEx", execSetEX, writeFirstKey, rollbackFirstKey, 4, flagWrite)
 	RegisterCommand("PSetEX ", execPSetEX, writeFirstKey, rollbackFirstKey, 4, flagWrite)
+	RegisterCommand("MSet", execMSet, prepareMSet, undoMSet, -3, flagWrite)
 	RegisterCommand("GET", execGet, readFirstKey, nil, 2, flagReadOnly)
 }
