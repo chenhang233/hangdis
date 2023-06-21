@@ -96,6 +96,24 @@ func execSetNX(db *DB, args [][]byte) redis.Reply {
 	return protocol.MakeIntReply(int64(ok))
 }
 
+func execSetEX(db *DB, args [][]byte) redis.Reply {
+	key := string(args[0])
+	value := args[2]
+	num, err := strconv.ParseInt(string(args[1]), 10, 64)
+	if err != nil {
+		return protocol.MakeSyntaxErrReply()
+	}
+	if num <= 0 {
+		return protocol.MakeErrReply("ERR invalid expire time in setex")
+	}
+	entity := &database.DataEntity{Data: value}
+	db.PutEntity(key, entity)
+	expireTime := time.Now().Add(time.Duration(num*1000) * time.Millisecond)
+	db.Expire(key, expireTime)
+	db.addAof(utils.ToCmdLine3("setex", args...))
+	return &protocol.OkReply{}
+}
+
 func (db *DB) getAsString(key string) ([]byte, *protocol.SyntaxErrReply) {
 	entity, ok := db.GetEntity(key)
 	if !ok {
@@ -120,5 +138,6 @@ func execGet(db *DB, args [][]byte) redis.Reply {
 func init() {
 	RegisterCommand("SET", execSet, writeFirstKey, rollbackFirstKey, -3, flagWrite)
 	RegisterCommand("SETNx", execSetNX, writeFirstKey, rollbackFirstKey, -3, flagWrite)
+	RegisterCommand("SETEx", execSetEX, writeFirstKey, rollbackFirstKey, 4, flagWrite)
 	RegisterCommand("GET", execGet, readFirstKey, nil, 2, flagReadOnly)
 }

@@ -41,7 +41,7 @@ func ListenAndServeWithSignal(cfg *Config, handler tcp.Handler) error {
 	if err != nil {
 		return err
 	}
-	logs.LOG.Info.Println(fmt.Sprintf("bind: %s, start listening...", cfg.Address))
+	logs.LOG.Info.Println(utils.Green(fmt.Sprintf("bind: %s, start listening...", cfg.Address)))
 	ListenAndServe(listen, handler, closeChan, cfg)
 	return nil
 }
