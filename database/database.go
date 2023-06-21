@@ -105,7 +105,7 @@ func (db *DB) Expire(key string, expireTime time.Time) {
 		if !exists {
 			return
 		}
-		logs.LOG.Debug.Println(fmt.Sprintf("callback key: %s", name))
+		logs.LOG.Debug.Println(fmt.Sprintf("callback key: %s", utils.Green(name)))
 		expireTime := val.(time.Time)
 		expired := time.Now().After(expireTime)
 		if expired {

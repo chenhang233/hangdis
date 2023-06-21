@@ -25,8 +25,7 @@ func TestClientDial(t *testing.T) {
 	dial, _ := net.Dial("tcp", "127.0.0.1:8888")
 	mu := &protocol.MultiBulkReply{
 		Args: [][]byte{
-			[]byte("SET"),
-			[]byte("a"),
+			[]byte("GET"),
 			[]byte("a"),
 		},
 	}

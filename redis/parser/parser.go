@@ -79,7 +79,7 @@ func parseArray(line []byte, reader *bufio.Reader, ch chan<- *Payload) error {
 	if err != nil {
 		return err
 	} else if num < 0 || num == 0 {
-		return errors.New("illegal array header " + string(line[1:]))
+		return errors.New("parseArray illegal array header " + string(line[1:]))
 	}
 	lines := make([][]byte, 0, num)
 	for i := int64(0); i < num; i++ {
@@ -116,8 +116,12 @@ func parseBulkString(header []byte, reader *bufio.Reader, ch chan<- *Payload) er
 	num, err := strconv.ParseInt(string(header[1:]), 10, 64)
 	if err != nil {
 		return err
-	} else if num < 0 || num == 0 {
-		return errors.New("illegal array header " + string(header[1:]))
+	}
+	if num == -1 {
+		ch <- &Payload{Data: protocol.MakeEmptyMultiBulkReply()}
+		return nil
+	} else if num <= 0 {
+		return errors.New("parseBulkString illegal array header " + string(header[1:]))
 	}
 	body := make([]byte, num+2)
 	_, err = io.ReadFull(reader, body)
