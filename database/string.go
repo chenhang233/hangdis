@@ -295,6 +295,61 @@ func execGetSet(db *DB, args [][]byte) redis.Reply {
 	return protocol.MakeBulkReply(old)
 }
 
+func execGetDel(db *DB, args [][]byte) redis.Reply {
+	key := string(args[0])
+	val, err := db.getAsString(key)
+	if err != nil {
+		return err
+	}
+	db.Remove(key)
+	db.addAof(utils.ToCmdLine3("del", args...))
+	return protocol.MakeBulkReply(val)
+}
+
+func execIncr(db *DB, args [][]byte) redis.Reply {
+	key := string(args[0])
+	val, err := db.getAsString(key)
+	if err != nil {
+		return protocol.MakeEmptyMultiBulkReply()
+	}
+	if val != nil {
+		num, err2 := strconv.ParseInt(string(val), 10, 64)
+		if err2 != nil {
+			return protocol.MakeErrReply("ERR value is not an integer or out of range")
+		}
+		num++
+		db.PutEntity(key, &database.DataEntity{Data: []byte(strconv.FormatInt(num, 10))})
+		db.addAof(utils.ToCmdLine3("incr", args...))
+		return protocol.MakeIntReply(num)
+	}
+	db.PutEntity(key, &database.DataEntity{Data: []byte("1")})
+	db.addAof(utils.ToCmdLine3("incr", []byte("1")))
+	return protocol.MakeIntReply(1)
+}
+
+func execIncrBy(db *DB, args [][]byte) redis.Reply {
+	key := string(args[0])
+	add, err := strconv.ParseInt(string(args[1]), 10, 64)
+	if err != nil {
+		return protocol.MakeErrReply("ERR value is not an integer or out of range")
+	}
+	num, _ := db.getAsString(key)
+	if num != nil {
+		i, err := strconv.ParseInt(string(num), 10, 64)
+		if err != nil {
+			return protocol.MakeErrReply("ERR value is not an integer or out of range")
+		}
+		i += add
+		formatInt := strconv.FormatInt(i, 10)
+		db.PutEntity(key, &database.DataEntity{Data: []byte(formatInt)})
+		db.addAof(utils.ToCmdLine3("incrby", args...))
+		return protocol.MakeIntReply(i)
+	}
+	db.PutEntity(key, &database.DataEntity{Data: args[1]})
+	db.addAof(utils.ToCmdLine3("incrby", args...))
+	return protocol.MakeIntReply(add)
+}
+
 func init() {
 	RegisterCommand("SET", execSet, writeFirstKey, rollbackFirstKey, -3, flagWrite)
 	RegisterCommand("SETNx", execSetNX, writeFirstKey, rollbackFirstKey, -3, flagWrite)
@@ -306,9 +361,9 @@ func init() {
 	RegisterCommand("GetEX", execGetEX, writeFirstKey, rollbackFirstKey, -2, flagReadOnly)
 	RegisterCommand("MGet", execMGet, prepareMGet, nil, -2, flagReadOnly)
 	RegisterCommand("GetSet", execGetSet, writeFirstKey, rollbackFirstKey, 3, flagWrite)
-	//RegisterCommand("GetDel", execGetDel, writeFirstKey, rollbackFirstKey, 2, flagWrite)
-	//RegisterCommand("Incr", execIncr, writeFirstKey, rollbackFirstKey, 2, flagWrite)
-	//RegisterCommand("IncrBy", execIncrBy, writeFirstKey, rollbackFirstKey, 3, flagWrite)
+	RegisterCommand("GetDel", execGetDel, writeFirstKey, rollbackFirstKey, 2, flagWrite)
+	RegisterCommand("INCR", execIncr, writeFirstKey, rollbackFirstKey, 2, flagWrite)
+	RegisterCommand("IncrBy", execIncrBy, writeFirstKey, rollbackFirstKey, 3, flagWrite)
 	//RegisterCommand("IncrByFloat", execIncrByFloat, writeFirstKey, rollbackFirstKey, 3, flagWrite)
 	//RegisterCommand("Decr", execDecr, writeFirstKey, rollbackFirstKey, 2, flagWrite)
 	//RegisterCommand("DecrBy", execDecrBy, writeFirstKey, rollbackFirstKey, 3, flagWrite)
