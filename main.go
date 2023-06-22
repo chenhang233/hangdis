@@ -4,6 +4,7 @@ import (
 	"hangdis/config"
 	"hangdis/redis/server"
 	"hangdis/tcp"
+	"hangdis/utils"
 	"hangdis/utils/logs"
 )
 
@@ -14,7 +15,7 @@ const banner = `
 `
 
 func main() {
-	print(banner)
+	print(utils.Red(banner))
 	config.SetupConfig("hangdis.conf")
 	c := &tcp.Config{
 		Name:    "hangdis",

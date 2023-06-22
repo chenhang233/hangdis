@@ -436,7 +436,72 @@ func execStrLen(db *DB, args [][]byte) redis.Reply {
 
 func execAppend(db *DB, args [][]byte) redis.Reply {
 	key := string(args[0])
-	val := string(args[1])
+	old, err := db.getAsString(key)
+	if err != nil {
+		return err
+	}
+	old = append(old, args[1]...)
+	db.PutEntity(key, &database.DataEntity{Data: old})
+	db.addAof(utils.ToCmdLine3("append", args...))
+	return protocol.MakeIntReply(int64(len(old)))
+}
+
+func execSetRange(db *DB, args [][]byte) redis.Reply {
+	key := string(args[0])
+	offset, err := strconv.ParseInt(string(args[1]), 10, 64)
+	if err != nil {
+		return protocol.MakeErrReply(err.Error())
+	}
+	old, err2 := db.getAsString(key)
+	if err2 != nil {
+		return err2
+	}
+	n1 := len(old)
+	n2 := int(offset)
+	n3 := len(args[2])
+	if n1-1 < n2 {
+		apd := make([]byte, n2-n1)
+		old = append(old, apd...)
+		n1 += len(apd)
+	}
+	for i, j := n2, 0; i < n2+n3; i++ {
+		if i >= n1 {
+			old = append(old, args[2][j])
+		} else {
+			old[i] = args[2][j]
+		}
+		j++
+	}
+	db.PutEntity(key, &database.DataEntity{
+		Data: old,
+	})
+	db.addAof(utils.ToCmdLine3("setRange", args...))
+	return protocol.MakeIntReply(int64(len(old)))
+}
+
+func execGetRange(db *DB, args [][]byte) redis.Reply {
+	key := string(args[0])
+	startIdx, err2 := strconv.ParseInt(string(args[1]), 10, 64)
+	if err2 != nil {
+		return protocol.MakeErrReply("ERR value is not an integer or out of range")
+	}
+	endIdx, err2 := strconv.ParseInt(string(args[2]), 10, 64)
+	if err2 != nil {
+		return protocol.MakeErrReply("ERR value is not an integer or out of range")
+	}
+	bs, err := db.getAsString(key)
+	if err != nil {
+		return err
+	}
+	if bs == nil {
+		return protocol.MakeEmptyMultiBulkReply()
+	}
+	bytesLen := int64(len(bs))
+	beg, end := utils.ConvertRange(startIdx, endIdx, bytesLen)
+	if beg < 0 {
+		return protocol.MakeEmptyMultiBulkReply()
+	}
+	return protocol.MakeBulkReply(bs[beg:end])
 }
 
 func init() {
@@ -458,8 +523,8 @@ func init() {
 	RegisterCommand("DecrBy", execDecrBy, writeFirstKey, rollbackFirstKey, 3, flagWrite)
 	RegisterCommand("StrLen", execStrLen, readFirstKey, nil, 2, flagReadOnly)
 	RegisterCommand("Append", execAppend, writeFirstKey, rollbackFirstKey, 3, flagWrite)
-	//RegisterCommand("SetRange", execSetRange, writeFirstKey, rollbackFirstKey, 4, flagWrite)
-	//RegisterCommand("GetRange", execGetRange, readFirstKey, nil, 4, flagReadOnly)
+	RegisterCommand("SetRange", execSetRange, writeFirstKey, rollbackFirstKey, 4, flagWrite)
+	RegisterCommand("GetRange", execGetRange, readFirstKey, nil, 4, flagReadOnly)
 	//RegisterCommand("SetBit", execSetBit, writeFirstKey, rollbackFirstKey, 4, flagWrite)
 	//RegisterCommand("GetBit", execGetBit, readFirstKey, nil, 3, flagReadOnly)
 	//RegisterCommand("BitCount", execBitCount, readFirstKey, nil, -2, flagReadOnly)
