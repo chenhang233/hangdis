@@ -14,7 +14,7 @@ type Client struct {
 	addr        string
 	pendingReqs chan *request
 	waitingReqs chan *request
-	status      int
+	Status      int
 }
 
 type request struct {
@@ -36,7 +36,7 @@ func MakeClient(addr string) (*Client, error) {
 		return nil, err
 	}
 	return &Client{
-		status:      STOP,
+		Status:      STOP,
 		addr:        addr,
 		conn:        dial,
 		pendingReqs: make(chan *request, chanSize),
@@ -47,17 +47,17 @@ func MakeClient(addr string) (*Client, error) {
 func (c *Client) Start() {
 	go c.handleRead()
 	go c.handleWrite()
-	c.status = RUN
+	c.Status = RUN
 }
 
-func (c *Client) Close() {
-	c.status = STOP
+func (c *Client) Close() error {
+	c.Status = STOP
 	close(c.pendingReqs)
 	close(c.waitingReqs)
-	_ = c.conn.Close()
+	return c.conn.Close()
 }
 func (c *Client) Send(args [][]byte) redis.Reply {
-	if c.status == STOP {
+	if c.Status == STOP {
 		return protocol.MakeErrReply("client closed")
 	}
 	req := &request{args: args, wait: &sync.WaitGroup{}}

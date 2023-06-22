@@ -15,11 +15,59 @@ import (
 	"strings"
 )
 
-var addr *string
-var nullBulkBytes = []byte("$-1\r\n")
+var (
+	addr          *string
+	nullBulkBytes = []byte("$-1\r\n")
+	cmdTable      = make(map[string]*Command)
+)
+
+type ExecFunc func(*client.Client) error
+
+type Command struct {
+	executor ExecFunc
+}
+
+func RegisterCMD(name string, executor ExecFunc) {
+	name = strings.ToLower(name)
+	cmdTable[name] = &Command{
+		executor: executor,
+	}
+}
+
+func matchCMD(c *client.Client, name string) bool {
+	name = strings.ToLower(name)
+	command := cmdTable[name]
+	if command != nil {
+		e := command.executor
+		if e == nil {
+			panic("executor not found")
+		}
+		_ = e(c)
+		return true
+	}
+	return false
+}
+
+func quit(c *client.Client) error {
+	return c.Close()
+}
+
+func clear(c *client.Client) error {
+	command := exec.Command("cmd", "/c", "cls")
+	command.Stdout = os.Stdout
+	err := command.Run()
+	if err != nil {
+		fmt.Println(err)
+	}
+	return err
+}
 
 func init() {
 	addr = flag.String("addr", "127.0.0.1:8888", "bind addr")
+	RegisterCMD("quit", quit)
+	RegisterCMD("exit", quit)
+	RegisterCMD("clear", clear)
+	RegisterCMD("cls", clear)
 }
 
 func main() {
@@ -30,8 +78,12 @@ func main() {
 	fmt.Println(utils.Green(fmt.Sprintf("tcp connection establishment addr: %s", *addr)))
 	c.Start()
 	fmt.Println(utils.White("Please enter the command"))
+	reader := bufio.NewReader(os.Stdin)
 	for {
-		reader := bufio.NewReader(os.Stdin)
+		if c.Status == client.STOP {
+			fmt.Println(utils.Yellow("Exit signal "))
+			break
+		}
 		bs, err := reader.ReadBytes('\n')
 		if err != nil {
 			fmt.Println(utils.Red(err.Error()))
@@ -39,16 +91,8 @@ func main() {
 		}
 		cmd := string(bs[:len(bs)-2])
 		cmd = strings.Trim(cmd, " ")
-		if cmd == "quit" || cmd == "exit" {
-			break
-		}
-		if cmd == "clear" || cmd == "cls" {
-			command := exec.Command("cmd", "/c", "cls")
-			command.Stdout = os.Stdout
-			err := command.Run()
-			if err != nil {
-				fmt.Println(err)
-			}
+		f := matchCMD(c, cmd)
+		if f {
 			continue
 		}
 		list := strings.Split(cmd, " ")
@@ -61,7 +105,6 @@ func main() {
 		}
 		parseReplyType(c.Send(bys))
 	}
-	c.Close()
 }
 
 func parseReplyType(response redis.Reply) {
