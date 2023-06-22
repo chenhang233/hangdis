@@ -310,7 +310,7 @@ func execIncr(db *DB, args [][]byte) redis.Reply {
 	key := string(args[0])
 	val, err := db.getAsString(key)
 	if err != nil {
-		return protocol.MakeEmptyMultiBulkReply()
+		return err
 	}
 	if val != nil {
 		num, err2 := strconv.ParseInt(string(val), 10, 64)
@@ -350,6 +350,95 @@ func execIncrBy(db *DB, args [][]byte) redis.Reply {
 	return protocol.MakeIntReply(add)
 }
 
+func execIncrByFloat(db *DB, args [][]byte) redis.Reply {
+	key := string(args[0])
+	add := string(args[1])
+	float, err := strconv.ParseFloat(add, 64)
+	if err != nil {
+		return protocol.MakeErrReply("ERR value is not a valid float")
+	}
+	val, _ := db.getAsString(key)
+	if val != nil {
+		old, err := strconv.ParseFloat(string(val), 64)
+		if err != nil {
+			return protocol.MakeErrReply("ERR value is not a valid float")
+		}
+		old += float
+		next := []byte(strconv.FormatFloat(old, 'f', -1, 64))
+		db.PutEntity(key, &database.DataEntity{Data: next})
+		db.addAof(utils.ToCmdLine3("incrbyflaot", args...))
+		return protocol.MakeBulkReply(next)
+	}
+	db.PutEntity(key, &database.DataEntity{Data: args[1]})
+	db.addAof(utils.ToCmdLine3("incrbyflaot", args...))
+	return protocol.MakeBulkReply(args[1])
+}
+
+func execDecr(db *DB, args [][]byte) redis.Reply {
+	key := string(args[0])
+	num, _ := db.getAsString(key)
+	if num != nil {
+		add, err := strconv.ParseInt(string(num), 10, 64)
+		if err != nil {
+			return protocol.MakeErrReply("ERR value is not an integer or out of range")
+		}
+		add--
+		entity := &database.DataEntity{
+			Data: []byte(strconv.FormatInt(add, 10)),
+		}
+		db.PutEntity(key, entity)
+		db.addAof(utils.ToCmdLine3("decr", args...))
+		return protocol.MakeIntReply(add)
+	}
+	entity := &database.DataEntity{
+		Data: []byte("-1"),
+	}
+	db.PutEntity(key, entity)
+	db.addAof(utils.ToCmdLine3("decr", args...))
+	return protocol.MakeIntReply(-1)
+}
+
+func execDecrBy(db *DB, args [][]byte) redis.Reply {
+	key := string(args[0])
+	value := string(args[1])
+	float, err := strconv.ParseFloat(value, 64)
+	if err != nil {
+		return protocol.MakeErrReply("ERR value is not a valid float")
+	}
+	val, _ := db.getAsString(key)
+	if val != nil {
+		old, err := strconv.ParseFloat(string(val), 64)
+		if err != nil {
+			return protocol.MakeErrReply("ERR value is not a valid float")
+		}
+		old -= float
+		next := []byte(strconv.FormatFloat(old, 'f', -1, 64))
+		db.PutEntity(key, &database.DataEntity{Data: next})
+		db.addAof(utils.ToCmdLine3("decrby", args...))
+		return protocol.MakeBulkReply(next)
+	}
+	db.PutEntity(key, &database.DataEntity{Data: args[1]})
+	db.addAof(utils.ToCmdLine3("decrby", args...))
+	return protocol.MakeBulkReply(args[1])
+}
+
+func execStrLen(db *DB, args [][]byte) redis.Reply {
+	key := string(args[0])
+	val, err := db.getAsString(key)
+	if err != nil {
+		return err
+	}
+	if val == nil {
+		return protocol.MakeIntReply(0)
+	}
+	return protocol.MakeIntReply(int64(len(val)))
+}
+
+func execAppend(db *DB, args [][]byte) redis.Reply {
+	key := string(args[0])
+	val := string(args[1])
+}
+
 func init() {
 	RegisterCommand("SET", execSet, writeFirstKey, rollbackFirstKey, -3, flagWrite)
 	RegisterCommand("SETNx", execSetNX, writeFirstKey, rollbackFirstKey, -3, flagWrite)
@@ -364,11 +453,11 @@ func init() {
 	RegisterCommand("GetDel", execGetDel, writeFirstKey, rollbackFirstKey, 2, flagWrite)
 	RegisterCommand("INCR", execIncr, writeFirstKey, rollbackFirstKey, 2, flagWrite)
 	RegisterCommand("IncrBy", execIncrBy, writeFirstKey, rollbackFirstKey, 3, flagWrite)
-	//RegisterCommand("IncrByFloat", execIncrByFloat, writeFirstKey, rollbackFirstKey, 3, flagWrite)
-	//RegisterCommand("Decr", execDecr, writeFirstKey, rollbackFirstKey, 2, flagWrite)
-	//RegisterCommand("DecrBy", execDecrBy, writeFirstKey, rollbackFirstKey, 3, flagWrite)
-	//RegisterCommand("StrLen", execStrLen, readFirstKey, nil, 2, flagReadOnly)
-	//RegisterCommand("Append", execAppend, writeFirstKey, rollbackFirstKey, 3, flagWrite)
+	RegisterCommand("IncrByFloat", execIncrByFloat, writeFirstKey, rollbackFirstKey, 3, flagWrite)
+	RegisterCommand("Decr", execDecr, writeFirstKey, rollbackFirstKey, 2, flagWrite)
+	RegisterCommand("DecrBy", execDecrBy, writeFirstKey, rollbackFirstKey, 3, flagWrite)
+	RegisterCommand("StrLen", execStrLen, readFirstKey, nil, 2, flagReadOnly)
+	RegisterCommand("Append", execAppend, writeFirstKey, rollbackFirstKey, 3, flagWrite)
 	//RegisterCommand("SetRange", execSetRange, writeFirstKey, rollbackFirstKey, 4, flagWrite)
 	//RegisterCommand("GetRange", execGetRange, readFirstKey, nil, 4, flagReadOnly)
 	//RegisterCommand("SetBit", execSetBit, writeFirstKey, rollbackFirstKey, 4, flagWrite)

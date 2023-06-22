@@ -2,6 +2,7 @@ package database
 
 import (
 	"fmt"
+	"strconv"
 	"sync"
 	"testing"
 )
@@ -18,4 +19,11 @@ func TestRWMutex(t *testing.T) {
 	}
 	fmt.Println(s.mutex, " s.mutex")
 	s.mutex.Lock()
+}
+
+func TestFormatFloat(t *testing.T) {
+	f := 1.21
+	f += 0.22
+	float := strconv.FormatFloat(f, 'f', -1, 64)
+	fmt.Println(float)
 }
