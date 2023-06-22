@@ -61,3 +61,12 @@ func TestClient(t *testing.T) {
 	c.Close()
 
 }
+
+func TestParseInputString(t *testing.T) {
+	//numbers := []int{0, 1, 2, 3, 4, 5, 6, 7, 8}
+	//fmt.Println(numbers[8:9])
+	fmt.Println(client.ParseInputString("get a"))
+	fmt.Println(client.ParseInputString("set a \"hello world\""))
+	fmt.Println(client.ParseInputString("set b hello world"))
+	fmt.Println(client.ParseInputString("set \"hello world\" ssss"))
+}

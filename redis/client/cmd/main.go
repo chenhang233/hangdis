@@ -2,23 +2,18 @@ package main
 
 import (
 	"bufio"
-	"bytes"
 	"flag"
 	"fmt"
-	"hangdis/interface/redis"
 	"hangdis/redis/client"
-	"hangdis/redis/protocol"
 	"hangdis/utils"
 	"os"
 	"os/exec"
-	"strconv"
 	"strings"
 )
 
 var (
-	addr          *string
-	nullBulkBytes = []byte("$-1\r\n")
-	cmdTable      = make(map[string]*Command)
+	addr     *string
+	cmdTable = make(map[string]*Command)
 )
 
 type ExecFunc func(*client.Client) error
@@ -95,7 +90,7 @@ func main() {
 		if f {
 			continue
 		}
-		list := strings.Split(cmd, " ")
+		list := client.ParseInputString(cmd)
 		n := len(list)
 		bys := make([][]byte, n)
 		for i := 0; i < n; i++ {
@@ -103,41 +98,6 @@ func main() {
 			bys[i] = make([]byte, len(str))
 			bys[i] = []byte(str)
 		}
-		parseReplyType(c.Send(bys))
-	}
-}
-
-func parseReplyType(response redis.Reply) {
-	bys := response.ToBytes()
-	if bytes.Compare(bys, nullBulkBytes) == 0 {
-		//reply := response.(*protocol.EmptyMultiBulkReply)
-		fmt.Println(utils.Red("null"))
-		return
-	}
-	switch bys[0] {
-	case '+':
-		reply := response.(*protocol.StandardStatusReply)
-		fmt.Println(fmt.Sprintf("+ %s", utils.Blue(reply.Status)))
-	case '-':
-		reply := response.(*protocol.StandardErrReply)
-		fmt.Println(fmt.Sprintf("- %s", utils.Blue(reply.Status)))
-	case '$':
-		reply := response.(*protocol.BulkReply)
-		fmt.Println(fmt.Sprintf("$ %s", utils.Blue(string(reply.Arg))))
-	case ':':
-		reply := response.(*protocol.IntReply)
-		fmt.Println(fmt.Sprintf(": %s", utils.Blue(strconv.FormatInt(reply.Code, 10))))
-	case '*':
-		reply := response.(*protocol.MultiBulkReply)
-		n := len(reply.Args)
-		for i := 0; i < n; i++ {
-			t := string(reply.Args[i])
-			if len(t) == 0 {
-				t = "null"
-			}
-			fmt.Println(fmt.Sprintf("* %d: %s", i, utils.Yellow(t)))
-		}
-	default:
-		fmt.Println(fmt.Sprintf("can not parse %s", utils.Purple(string(response.ToBytes()))))
+		client.ParseReplyType(c.Send(bys))
 	}
 }
