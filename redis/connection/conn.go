@@ -123,7 +123,6 @@ func (c *Connection) GetWatching() map[string]uint32 {
 }
 
 func (c *Connection) SetSlave() {
-
 }
 func (c *Connection) IsSlave() bool {
 	return false

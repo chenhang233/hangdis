@@ -162,6 +162,14 @@ func prepareMSet(args [][]byte) ([]string, []string) {
 	return keys, nil
 }
 
+func prepareMGet(args [][]byte) ([]string, []string) {
+	keys := make([]string, len(args))
+	for i, v := range args {
+		keys[i] = string(v)
+	}
+	return nil, keys
+}
+
 func undoMSet(db *DB, args [][]byte) []CmdLine {
 	writeKeys, _ := prepareMSet(args)
 	return rollbackGivenKeys(db, writeKeys...)
@@ -258,6 +266,19 @@ func execGetEX(db *DB, args [][]byte) redis.Reply {
 	return protocol.MakeBulkReply(bys)
 }
 
+func execMGet(db *DB, args [][]byte) redis.Reply {
+	n := len(args)
+	bys := make([][]byte, n)
+	for i := 0; i < n; i++ {
+		asString, err := db.getAsString(string(args[i]))
+		if err != nil {
+			return err
+		}
+		bys[i] = asString
+	}
+	return protocol.MakeMultiBulkReply(bys)
+}
+
 func init() {
 	RegisterCommand("SET", execSet, writeFirstKey, rollbackFirstKey, -3, flagWrite)
 	RegisterCommand("SETNx", execSetNX, writeFirstKey, rollbackFirstKey, -3, flagWrite)
@@ -267,5 +288,5 @@ func init() {
 	RegisterCommand("MSetNX", execMSetNX, prepareMSet, undoMSet, -3, flagWrite)
 	RegisterCommand("GET", execGet, readFirstKey, nil, 2, flagReadOnly)
 	RegisterCommand("GetEX", execGetEX, writeFirstKey, rollbackFirstKey, -2, flagReadOnly)
-	//RegisterCommand("MGet", execMGet, prepareMGet, nil, -2, flagReadOnly)
+	RegisterCommand("MGet", execMGet, prepareMGet, nil, -2, flagReadOnly)
 }
