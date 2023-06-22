@@ -7,6 +7,7 @@ import (
 	"hangdis/redis/connection"
 	"hangdis/redis/parser"
 	"hangdis/redis/protocol"
+	"hangdis/utils"
 	"hangdis/utils/logs"
 	"io"
 	"net"
@@ -47,7 +48,7 @@ func (h *Handler) Handle(ctx context.Context, conn net.Conn) {
 		if payload.Err != nil {
 			if payload.Err == io.EOF || payload.Err == io.ErrUnexpectedEOF {
 				h.closeClient(client)
-				logs.LOG.Warn.Println("client closed" + client.RemoteAddr().String())
+				logs.LOG.Warn.Println("client closed " + utils.Purple(client.RemoteAddr().String()))
 				return
 			}
 			reply := protocol.MakeErrReply(payload.Err.Error())

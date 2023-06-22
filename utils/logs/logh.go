@@ -52,10 +52,10 @@ func LoadLog(sName string) (*LogConf, error) {
 		return nil, err
 	}
 	multiWriter := io.MultiWriter(os.Stdout, logFile)
-	conf.Debug = log.New(multiWriter, "[debug]", log.Ldate|log.Ltime|log.Lshortfile)
-	conf.Info = log.New(multiWriter, "[info]", log.Ldate|log.Ltime|log.Lshortfile)
-	conf.Warn = log.New(multiWriter, "[warn]", log.Ldate|log.Ltime|log.Lshortfile)
-	conf.Error = log.New(multiWriter, "[error]", log.Ldate|log.Ltime|log.Lshortfile)
+	conf.Debug = log.New(multiWriter, "[debug]", log.Ldate|log.Ltime|log.Llongfile)
+	conf.Info = log.New(multiWriter, "[info]", log.Ldate|log.Ltime|log.Llongfile)
+	conf.Warn = log.New(multiWriter, "[warn]", log.Ldate|log.Ltime|log.Llongfile)
+	conf.Error = log.New(multiWriter, "[error]", log.Ldate|log.Ltime|log.Llongfile)
 	return conf, nil
 }
 

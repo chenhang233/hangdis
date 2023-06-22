@@ -279,6 +279,22 @@ func execMGet(db *DB, args [][]byte) redis.Reply {
 	return protocol.MakeMultiBulkReply(bys)
 }
 
+func execGetSet(db *DB, args [][]byte) redis.Reply {
+	key := string(args[0])
+	value := args[1]
+	old, err := db.getAsString(key)
+	if err != nil {
+		return err
+	}
+	db.PutEntity(key, &database.DataEntity{Data: value})
+	db.Persist(key)
+	db.addAof(utils.ToCmdLine3("getset", args...))
+	if old == nil {
+		return protocol.MakeEmptyMultiBulkReply()
+	}
+	return protocol.MakeBulkReply(old)
+}
+
 func init() {
 	RegisterCommand("SET", execSet, writeFirstKey, rollbackFirstKey, -3, flagWrite)
 	RegisterCommand("SETNx", execSetNX, writeFirstKey, rollbackFirstKey, -3, flagWrite)
@@ -289,4 +305,20 @@ func init() {
 	RegisterCommand("GET", execGet, readFirstKey, nil, 2, flagReadOnly)
 	RegisterCommand("GetEX", execGetEX, writeFirstKey, rollbackFirstKey, -2, flagReadOnly)
 	RegisterCommand("MGet", execMGet, prepareMGet, nil, -2, flagReadOnly)
+	RegisterCommand("GetSet", execGetSet, writeFirstKey, rollbackFirstKey, 3, flagWrite)
+	//RegisterCommand("GetDel", execGetDel, writeFirstKey, rollbackFirstKey, 2, flagWrite)
+	//RegisterCommand("Incr", execIncr, writeFirstKey, rollbackFirstKey, 2, flagWrite)
+	//RegisterCommand("IncrBy", execIncrBy, writeFirstKey, rollbackFirstKey, 3, flagWrite)
+	//RegisterCommand("IncrByFloat", execIncrByFloat, writeFirstKey, rollbackFirstKey, 3, flagWrite)
+	//RegisterCommand("Decr", execDecr, writeFirstKey, rollbackFirstKey, 2, flagWrite)
+	//RegisterCommand("DecrBy", execDecrBy, writeFirstKey, rollbackFirstKey, 3, flagWrite)
+	//RegisterCommand("StrLen", execStrLen, readFirstKey, nil, 2, flagReadOnly)
+	//RegisterCommand("Append", execAppend, writeFirstKey, rollbackFirstKey, 3, flagWrite)
+	//RegisterCommand("SetRange", execSetRange, writeFirstKey, rollbackFirstKey, 4, flagWrite)
+	//RegisterCommand("GetRange", execGetRange, readFirstKey, nil, 4, flagReadOnly)
+	//RegisterCommand("SetBit", execSetBit, writeFirstKey, rollbackFirstKey, 4, flagWrite)
+	//RegisterCommand("GetBit", execGetBit, readFirstKey, nil, 3, flagReadOnly)
+	//RegisterCommand("BitCount", execBitCount, readFirstKey, nil, -2, flagReadOnly)
+	//RegisterCommand("BitPos", execBitPos, readFirstKey, nil, -3, flagReadOnly)
+	//RegisterCommand("RandomKey", getRandomKey, readAllKeys, nil, 1, flagReadOnly)
 }

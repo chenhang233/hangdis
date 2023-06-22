@@ -52,11 +52,11 @@ func ListenAndServe(listener net.Listener, handler tcp.Handler, closeChan <-chan
 	go func() {
 		select {
 		case <-closeChan:
-			logs.LOG.Debug.Println("get exit signal")
+			logs.LOG.Debug.Print(utils.Purple("get exit signal"))
 			_ = listener.Close()
 			_ = handler.Close()
 		case er := <-errCh:
-			logs.LOG.Error.Println(fmt.Sprintf("accept error: %s", er.Error()))
+			logs.LOG.Error.Println(fmt.Sprintf("accept error: %s", utils.Red(er.Error())))
 		}
 	}()
 	ctx := context.Background()
@@ -71,14 +71,14 @@ func ListenAndServe(listener net.Listener, handler tcp.Handler, closeChan <-chan
 			errCh <- errors.New("Over maximum connection ")
 			continue
 		}
-		logs.LOG.Info.Println(fmt.Sprintf("client link: %s", conn.RemoteAddr().String()))
+		logs.LOG.Info.Println(fmt.Sprintf("client link: %s", utils.Blue(conn.RemoteAddr().String())))
 		ClientCounter++
 		waitDone.Add(1)
 		go func() {
 			defer func() {
 				waitDone.Done()
 				ClientCounter--
-				logs.LOG.Info.Println(fmt.Sprintf("client leave: %s", conn.RemoteAddr().String()))
+				logs.LOG.Info.Println(fmt.Sprintf("client leave: %s", utils.Purple(conn.RemoteAddr().String())))
 			}()
 			handler.Handle(ctx, conn)
 		}()
