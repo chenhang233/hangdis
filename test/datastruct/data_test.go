@@ -23,3 +23,12 @@ func TestDictSpread(t *testing.T) {
 	test := uint32(size-1) & u
 	fmt.Println("index: ", test)
 }
+
+func TestBit(t *testing.T) {
+	b := byte(2)
+	fmt.Println(b)
+	c := byte(1 << 2)
+	fmt.Println(c, "c")
+	b &^= c
+	fmt.Println(b, 1<<3)
+}

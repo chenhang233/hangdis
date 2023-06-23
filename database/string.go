@@ -2,6 +2,7 @@ package database
 
 import (
 	"hangdis/aof"
+	"hangdis/datastruct/bitmap"
 	"hangdis/interface/database"
 	"hangdis/interface/redis"
 	"hangdis/redis/protocol"
@@ -475,7 +476,7 @@ func execSetRange(db *DB, args [][]byte) redis.Reply {
 	db.PutEntity(key, &database.DataEntity{
 		Data: old,
 	})
-	db.addAof(utils.ToCmdLine3("setRange", args...))
+	db.addAof(utils.ToCmdLine3("setrange", args...))
 	return protocol.MakeIntReply(int64(len(old)))
 }
 
@@ -503,6 +504,50 @@ func execGetRange(db *DB, args [][]byte) redis.Reply {
 	}
 	return protocol.MakeBulkReply(bs[beg:end])
 }
+func execSetBit(db *DB, args [][]byte) redis.Reply {
+	key := string(args[0])
+	offset, err := strconv.ParseInt(string(args[1]), 10, 64)
+	if err != nil {
+		return protocol.MakeErrReply("ERR bit offset is not an integer or out of range")
+	}
+	value := string(args[2])
+	var v byte
+	if value == "0" {
+		v = 0
+	} else if value == "1" {
+		v = 1
+	} else {
+		return protocol.MakeErrReply("ERR bit is not an integer or out of range")
+	}
+	old, err2 := db.getAsString(key)
+	if err2 != nil {
+		return err2
+	}
+	bys := bitmap.FromBytes(old)
+	get := bys.Get(offset)
+	bys.Set(offset, v)
+	db.PutEntity(key, &database.DataEntity{Data: bys.ToBytes()})
+	db.addAof(utils.ToCmdLine3("setbit", args...))
+	return protocol.MakeIntReply(int64(get))
+}
+
+func execGetBit(db *DB, args [][]byte) redis.Reply {
+	key := string(args[0])
+	offset, err := strconv.ParseInt(string(args[1]), 10, 64)
+	if err != nil {
+		return protocol.MakeErrReply("ERR bit offset is not an integer or out of range")
+	}
+	old, err2 := db.getAsString(key)
+	if err2 != nil {
+		return err2
+	}
+	if old == nil {
+		return protocol.MakeIntReply(0)
+	}
+	bys := bitmap.FromBytes(old)
+	get := bys.Get(offset)
+	return protocol.MakeIntReply(int64(get))
+}
 
 func init() {
 	RegisterCommand("SET", execSet, writeFirstKey, rollbackFirstKey, -3, flagWrite)
@@ -525,8 +570,8 @@ func init() {
 	RegisterCommand("Append", execAppend, writeFirstKey, rollbackFirstKey, 3, flagWrite)
 	RegisterCommand("SetRange", execSetRange, writeFirstKey, rollbackFirstKey, 4, flagWrite)
 	RegisterCommand("GetRange", execGetRange, readFirstKey, nil, 4, flagReadOnly)
-	//RegisterCommand("SetBit", execSetBit, writeFirstKey, rollbackFirstKey, 4, flagWrite)
-	//RegisterCommand("GetBit", execGetBit, readFirstKey, nil, 3, flagReadOnly)
+	RegisterCommand("SetBit", execSetBit, writeFirstKey, rollbackFirstKey, 4, flagWrite)
+	RegisterCommand("GetBit", execGetBit, readFirstKey, nil, 3, flagReadOnly)
 	//RegisterCommand("BitCount", execBitCount, readFirstKey, nil, -2, flagReadOnly)
 	//RegisterCommand("BitPos", execBitPos, readFirstKey, nil, -3, flagReadOnly)
 	//RegisterCommand("RandomKey", getRandomKey, readAllKeys, nil, 1, flagReadOnly)
