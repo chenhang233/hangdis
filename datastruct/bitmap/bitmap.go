@@ -15,6 +15,9 @@ func FromBytes(bytes []byte) *BitMap {
 func (b *BitMap) ToBytes() []byte {
 	return *b
 }
+func (b *BitMap) BitSize() int {
+	return len(*b) * 8
+}
 
 func (b *BitMap) toByteSize(bitSize int64) int64 {
 	if bitSize%8 == 0 {
@@ -33,22 +36,62 @@ func (b *BitMap) grow(bitSize int64) {
 }
 
 func (b *BitMap) Get(offset int64) byte {
-	bitIndex := offset / 8
+	byteIndex := offset / 8
 	bitOffset := offset % 8
-	if bitIndex >= int64(len(*b)) {
+	if byteIndex >= int64(len(*b)) {
 		return 0
 	}
-	return ((*b)[bitIndex] >> bitOffset) & 0x01
+	return ((*b)[byteIndex] >> bitOffset) & 0x01
 }
 
 func (b *BitMap) Set(offset int64, val byte) {
-	bitIndex := offset / 8
+	byteIndex := offset / 8
 	bitOffset := offset % 8
 	mask := byte(1 << bitOffset)
 	b.grow(offset + 1)
 	if val > 0 {
-		(*b)[bitIndex] |= mask
+		(*b)[byteIndex] |= mask
 	} else {
-		(*b)[bitIndex] &^= mask
+		(*b)[byteIndex] &^= mask
+	}
+}
+
+type Callback func(offset int64, val byte) bool
+
+func (b *BitMap) ForEachBit(begin int64, end int64, cb Callback) {
+	offset := begin
+	byteIndex := offset / 8
+	bitOffset := offset % 8
+	for i := byteIndex; i < int64(len(*b)); i++ {
+		b := (*b)[byteIndex]
+		for bitOffset < 8 {
+			bit := byte(b >> bitOffset & 0x01)
+			if !cb(offset, bit) {
+				return
+			}
+			bitOffset++
+			offset++
+			if offset >= end && end != 0 {
+				break
+			}
+		}
+		byteIndex++
+		bitOffset = 0
+		if end > 0 && offset >= end {
+			break
+		}
+	}
+}
+
+func (b *BitMap) ForEachByte(begin int, end int, cb Callback) {
+	if end == 0 {
+		end = len(*b)
+	} else if end > len(*b) {
+		end = len(*b)
+	}
+	for i := begin; i < end; i++ {
+		if !cb(int64(i), (*b)[i]) {
+			return
+		}
 	}
 }

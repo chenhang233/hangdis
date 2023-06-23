@@ -92,6 +92,9 @@ func (c *Client) handleRead() {
 	ch := parser.ParseStream(c.conn)
 	for payload := range ch {
 		if payload.Err != nil {
+			if c.Status == STOP {
+				return
+			}
 			fmt.Println("handleRead payload.Err:", payload.Err)
 			//c.Close()
 			return

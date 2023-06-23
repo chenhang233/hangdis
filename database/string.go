@@ -7,6 +7,7 @@ import (
 	"hangdis/interface/redis"
 	"hangdis/redis/protocol"
 	"hangdis/utils"
+	"math/bits"
 	"strconv"
 	"strings"
 	"time"
@@ -549,6 +550,133 @@ func execGetBit(db *DB, args [][]byte) redis.Reply {
 	return protocol.MakeIntReply(int64(get))
 }
 
+func execBitCount(db *DB, args [][]byte) redis.Reply {
+	key := string(args[0])
+	bys, err := db.getAsString(key)
+	if err != nil {
+		return err
+	}
+	if bys == nil {
+		return protocol.MakeIntReply(0)
+	}
+	byteMode := true
+	if len(args) > 3 {
+		mode := strings.ToLower(string(args[3]))
+		if mode == "byte" {
+			byteMode = true
+		} else if mode == "bit" {
+			byteMode = false
+		}
+	}
+	var size int64
+	bs := bitmap.FromBytes(bys)
+	if byteMode {
+		size = int64(len(*bs))
+	} else {
+		size = int64(bs.BitSize())
+	}
+	var beg, end int
+	if len(args) > 1 {
+		var err2 error
+		var startIdx, endIdx int64
+		startIdx, err2 = strconv.ParseInt(string(args[1]), 10, 64)
+		if err2 != nil {
+			return protocol.MakeErrReply("ERR value is not an integer or out of range")
+		}
+		endIdx, err2 = strconv.ParseInt(string(args[2]), 10, 64)
+		if err2 != nil {
+			return protocol.MakeErrReply("ERR value is not an integer or out of range")
+		}
+		beg, end = utils.ConvertRange(startIdx, endIdx, size)
+		if beg < 0 {
+			return protocol.MakeIntReply(0)
+		}
+	}
+	var count int64
+	if byteMode {
+		bs.ForEachByte(beg, end, func(offset int64, val byte) bool {
+			count += int64(bits.OnesCount8(val))
+			return true
+		})
+	} else {
+		bs.ForEachBit(int64(beg), int64(end), func(offset int64, val byte) bool {
+			if val > 0 {
+				count++
+			}
+			return true
+		})
+	}
+	return protocol.MakeIntReply(count)
+}
+
+func execBitPos(db *DB, args [][]byte) redis.Reply {
+	key := string(args[0])
+	bs, err := db.getAsString(key)
+	if err != nil {
+		return err
+	}
+	if bs == nil {
+		return protocol.MakeIntReply(-1)
+	}
+	valStr := string(args[1])
+	var v byte
+	if valStr == "1" {
+		v = 1
+	} else if valStr == "0" {
+		v = 0
+	} else {
+		return protocol.MakeErrReply("ERR bit is not an integer or out of range")
+	}
+	byteMode := true
+	if len(args) > 4 {
+		mode := strings.ToLower(string(args[4]))
+		if mode == "bit" {
+			byteMode = false
+		} else if mode == "byte" {
+			byteMode = true
+		} else {
+			return protocol.MakeErrReply("ERR syntax error")
+		}
+	}
+	var size int64
+	bm := bitmap.FromBytes(bs)
+	if byteMode {
+		size = int64(len(*bm))
+	} else {
+		size = int64(bm.BitSize())
+	}
+	var beg, end int
+	if len(args) > 2 {
+		var err2 error
+		var startIdx, endIdx int64
+		startIdx, err2 = strconv.ParseInt(string(args[2]), 10, 64)
+		if err2 != nil {
+			return protocol.MakeErrReply("ERR value is not an integer or out of range")
+		}
+		endIdx, err2 = strconv.ParseInt(string(args[3]), 10, 64)
+		if err2 != nil {
+			return protocol.MakeErrReply("ERR value is not an integer or out of range")
+		}
+		beg, end = utils.ConvertRange(startIdx, endIdx, size)
+		if beg < 0 {
+			return protocol.MakeIntReply(0)
+		}
+	}
+	if byteMode {
+		beg *= 8
+		end *= 8
+	}
+	var offset = int64(-1)
+	bm.ForEachBit(int64(beg), int64(end), func(o int64, val byte) bool {
+		if val == v {
+			offset = o
+			return false
+		}
+		return true
+	})
+	return protocol.MakeIntReply(offset)
+}
+
 func init() {
 	RegisterCommand("SET", execSet, writeFirstKey, rollbackFirstKey, -3, flagWrite)
 	RegisterCommand("SETNx", execSetNX, writeFirstKey, rollbackFirstKey, -3, flagWrite)
@@ -572,7 +700,7 @@ func init() {
 	RegisterCommand("GetRange", execGetRange, readFirstKey, nil, 4, flagReadOnly)
 	RegisterCommand("SetBit", execSetBit, writeFirstKey, rollbackFirstKey, 4, flagWrite)
 	RegisterCommand("GetBit", execGetBit, readFirstKey, nil, 3, flagReadOnly)
-	//RegisterCommand("BitCount", execBitCount, readFirstKey, nil, -2, flagReadOnly)
-	//RegisterCommand("BitPos", execBitPos, readFirstKey, nil, -3, flagReadOnly)
-	//RegisterCommand("RandomKey", getRandomKey, readAllKeys, nil, 1, flagReadOnly)
+	RegisterCommand("BitCount", execBitCount, readFirstKey, nil, -2, flagReadOnly)
+	RegisterCommand("BitPos", execBitPos, readFirstKey, nil, -3, flagReadOnly)
+	RegisterCommand("RandomKey", getRandomKey, readAllKeys, nil, 1, flagReadOnly)
 }
