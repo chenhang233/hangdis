@@ -1,10 +1,12 @@
 package database
 
 import (
+	"fmt"
 	"hangdis/config"
 	"hangdis/interface/database"
 	"hangdis/interface/redis"
 	"hangdis/redis/protocol"
+	"hangdis/utils"
 	"hangdis/utils/logs"
 	"strings"
 	"sync/atomic"
@@ -44,6 +46,7 @@ func NewStandaloneServer() *Server {
 
 func (server *Server) Exec(c redis.Connection, cmdLine [][]byte) (result redis.Reply) {
 	cmdName := strings.ToLower(string(cmdLine[0]))
+	logs.LOG.Debug.Println(utils.Yellow(fmt.Sprintf("client info: %s  current execution command: %s", c.Name(), cmdName)))
 	if !isAuthenticated(c, cmdName) {
 		return protocol.MakeErrReply("Authentication required")
 	}

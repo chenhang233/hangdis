@@ -90,6 +90,18 @@ func (dict *ConcurrentDict) Get(key string) (val interface{}, exists bool) {
 	val, exists = table.m[key]
 	return
 }
+
+func (dict *ConcurrentDict) GetWithLock(key string) (val interface{}, exists bool) {
+	if dict == nil {
+		panic("dict is nil")
+	}
+	hashCode := GetHashCode32(key)
+	index := dict.spread(hashCode)
+	s := dict.getShard(index)
+	val, exists = s.m[key]
+	return
+}
+
 func (dict *ConcurrentDict) Len() int {
 	if dict == nil {
 		panic("dict is nil")

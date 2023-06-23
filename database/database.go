@@ -22,9 +22,9 @@ const (
 
 type DB struct {
 	index      int
-	data       dict.Dict
-	ttlMap     dict.Dict
-	versionMap dict.Dict
+	data       *dict.ConcurrentDict
+	ttlMap     *dict.ConcurrentDict
+	versionMap *dict.ConcurrentDict
 	addAof     func(CmdLine)
 	lock       sync.RWMutex
 }
@@ -50,7 +50,7 @@ func makeDB() *DB {
 }
 
 func (db *DB) GetEntity(key string) (*database.DataEntity, bool) {
-	row, exists := db.data.Get(key)
+	row, exists := db.data.GetWithLock(key)
 	if !exists || db.IsExpired(key) {
 		return nil, false
 	}
@@ -86,6 +86,18 @@ func (db *DB) Remove(key string) {
 	db.ttlMap.Remove(key)
 	name := utils.GetExpireTaskName(key)
 	timewheel.Cancel(name)
+}
+
+func (db *DB) Removes(keys ...string) (deleted int) {
+	deleted = 0
+	for _, key := range keys {
+		_, exists := db.data.GetWithLock(key)
+		if exists {
+			db.Remove(key)
+			deleted++
+		}
+	}
+	return deleted
 }
 
 func (db *DB) Persist(key string) {
