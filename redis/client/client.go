@@ -68,6 +68,9 @@ func (c *Client) Send(args [][]byte) redis.Reply {
 }
 
 func (c *Client) handleWrite() {
+	if c.Status == STOP {
+		return
+	}
 	for pending := range c.pendingReqs {
 		c.doReq(pending)
 	}

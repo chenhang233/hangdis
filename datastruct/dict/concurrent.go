@@ -227,7 +227,7 @@ func (dict *ConcurrentDict) RandomKeys(limit int) []string {
 		}
 		key := table.RandomKey()
 		if key != "" {
-			keys = append(keys, key)
+			keys[i] = key
 			i++
 		}
 	}

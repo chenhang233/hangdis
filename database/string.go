@@ -677,6 +677,15 @@ func execBitPos(db *DB, args [][]byte) redis.Reply {
 	return protocol.MakeIntReply(offset)
 }
 
+func getRandomKey(db *DB, args [][]byte) redis.Reply {
+	keys := db.data.RandomKeys(1)
+	if len(keys) == 0 {
+		return protocol.MakeEmptyMultiBulkReply()
+	}
+	var key []byte
+	return protocol.MakeBulkReply(strconv.AppendQuote(key, keys[0]))
+}
+
 func init() {
 	RegisterCommand("SET", execSet, writeFirstKey, rollbackFirstKey, -3, flagWrite)
 	RegisterCommand("SETNx", execSetNX, writeFirstKey, rollbackFirstKey, -3, flagWrite)
