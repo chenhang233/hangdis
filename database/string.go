@@ -14,9 +14,11 @@ import (
 )
 
 const (
-	upsertPolicy = iota // default
-	insertPolicy        // set nx
-	updatePolicy        // set xx
+	upsertPolicy  = iota // default
+	insertPolicy         // set nx
+	updatePolicy         // set xx
+	greaterExpiry        // set GL
+	lessExpiry           // set LT
 )
 const unlimitedTTL int64 = 0
 

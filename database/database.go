@@ -58,6 +58,15 @@ func (db *DB) GetEntity(key string) (*database.DataEntity, bool) {
 	return entity, true
 }
 
+func (db *DB) GetExpiredTime(key string) time.Time {
+	val, exists := db.ttlMap.Get(key)
+	if !exists {
+		return time.Now()
+	}
+	t := val.(time.Time)
+	return t
+}
+
 func (db *DB) IsExpired(key string) bool {
 	val, exists := db.ttlMap.Get(key)
 	if !exists {
@@ -69,6 +78,26 @@ func (db *DB) IsExpired(key string) bool {
 		db.Remove(key)
 	}
 	return after
+}
+
+func (db *DB) Expire(key string, expireTime time.Time) {
+	db.ttlMap.Put(key, expireTime)
+	name := utils.GetExpireTaskName(key)
+	timewheel.At(expireTime, name, func() {
+		keys := []string{key}
+		db.RWLocks(keys, nil)
+		defer db.RWUnLocks(keys, nil)
+		val, exists := db.ttlMap.Get(key)
+		if !exists {
+			return
+		}
+		logs.LOG.Debug.Println(fmt.Sprintf("Expire callback key: %s", utils.Green(name)))
+		expireTime := val.(time.Time)
+		expired := time.Now().After(expireTime)
+		if expired {
+			db.Remove(key)
+		}
+	})
 }
 
 func (db *DB) PutEntity(key string, entity *database.DataEntity) int {
@@ -104,26 +133,6 @@ func (db *DB) Persist(key string) {
 	db.ttlMap.Remove(key)
 	name := utils.GetExpireTaskName(key)
 	timewheel.Cancel(name)
-}
-
-func (db *DB) Expire(key string, expireTime time.Time) {
-	db.ttlMap.Put(key, expireTime)
-	name := utils.GetExpireTaskName(key)
-	timewheel.At(expireTime, name, func() {
-		keys := []string{key}
-		db.RWLocks(keys, nil)
-		defer db.RWUnLocks(keys, nil)
-		val, exists := db.ttlMap.Get(key)
-		if !exists {
-			return
-		}
-		logs.LOG.Debug.Println(fmt.Sprintf("callback key: %s", utils.Green(name)))
-		expireTime := val.(time.Time)
-		expired := time.Now().After(expireTime)
-		if expired {
-			db.Remove(key)
-		}
-	})
 }
 
 func (db *DB) AfterClientClose(c redis.Connection) {
