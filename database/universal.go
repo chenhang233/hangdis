@@ -185,6 +185,104 @@ func execExpireTime(db *DB, args [][]byte) redis.Reply {
 	return protocol.MakeIntReply(t.Unix())
 }
 
+func execPExpire(db *DB, args [][]byte) redis.Reply {
+	key := string(args[0])
+	num, err := strconv.ParseInt(string(args[1]), 10, 64)
+	if err != nil {
+		return protocol.MakeErrReply("ERR value is not an integer or out of range")
+	}
+	_, exist := db.GetEntity(key)
+	if !exist {
+		return protocol.MakeIntReply(0)
+	}
+	policy := upsertPolicy
+	if len(args) > 2 {
+		op := string(args[2])
+		if op == "NX" {
+			policy = insertPolicy
+		} else if op == "XX" {
+			policy = updatePolicy
+		} else if op == "GT" {
+			policy = greaterExpiry
+		} else if op == "LT" {
+			policy = lessExpiry
+		} else {
+			return protocol.MakeSyntaxErrReply()
+		}
+	}
+	expireAt := time.Now().Add(time.Duration(num))
+	switch policy {
+	case insertPolicy:
+		if db.IsExpired(key) {
+			return protocol.MakeIntReply(0)
+		}
+	case updatePolicy:
+		if !db.IsExpired(key) {
+			return protocol.MakeIntReply(0)
+		}
+	case greaterExpiry:
+		if !expireAt.After(db.GetExpiredTime(key)) {
+			return protocol.MakeIntReply(0)
+		}
+	case lessExpiry:
+		if expireAt.After(db.GetExpiredTime(key)) {
+			return protocol.MakeIntReply(0)
+		}
+	}
+	db.Expire(key, expireAt)
+	db.addAof(aof.MakeExpireCmd(key, expireAt).Args)
+	return protocol.MakeIntReply(1)
+}
+
+func execPExpireAt(db *DB, args [][]byte) redis.Reply {
+	key := string(args[0])
+	num, err := strconv.ParseInt(string(args[1]), 10, 64)
+	if err != nil {
+		return protocol.MakeErrReply("ERR value is not an integer or out of range")
+	}
+	_, exist := db.GetEntity(key)
+	if !exist {
+		return protocol.MakeIntReply(0)
+	}
+	policy := upsertPolicy
+	if len(args) > 2 {
+		op := string(args[2])
+		if op == "NX" {
+			policy = insertPolicy
+		} else if op == "XX" {
+			policy = updatePolicy
+		} else if op == "GT" {
+			policy = greaterExpiry
+		} else if op == "LT" {
+			policy = lessExpiry
+		} else {
+			return protocol.MakeSyntaxErrReply()
+		}
+	}
+	expireAt := time.UnixMicro(num)
+	switch policy {
+	case insertPolicy:
+		if db.IsExpired(key) {
+			return protocol.MakeIntReply(0)
+		}
+	case updatePolicy:
+		if !db.IsExpired(key) {
+			return protocol.MakeIntReply(0)
+		}
+	case greaterExpiry:
+		if !expireAt.After(db.GetExpiredTime(key)) {
+			return protocol.MakeIntReply(0)
+		}
+	case lessExpiry:
+		if expireAt.After(db.GetExpiredTime(key)) {
+			return protocol.MakeIntReply(0)
+		}
+	}
+	db.Expire(key, expireAt)
+	db.addAof(aof.MakeExpireCmd(key, expireAt).Args)
+	return protocol.MakeIntReply(1)
+}
+
 func init() {
 	RegisterCommand("DEL", execDel, writeAllKeys, undoDel, -2, flagWrite)
 	RegisterCommand("TTL", execTTL, readFirstKey, nil, 2, flagReadOnly)
@@ -192,8 +290,8 @@ func init() {
 	RegisterCommand("EXPIRE", execExpire, writeFirstKey, undoExpire, -3, flagWrite)
 	RegisterCommand("EXPIREAT", execExpireAt, writeFirstKey, undoExpire, -3, flagWrite)
 	RegisterCommand("EXPIRETIME", execExpireTime, readFirstKey, nil, 2, flagReadOnly)
-	//registerCommand("PExpire", execPExpire, writeFirstKey, undoExpire, 3, flagWrite)
-	//registerCommand("PExpireAt", execPExpireAt, writeFirstKey, undoExpire, 3, flagWrite)
+	RegisterCommand("PEXPIRE", execPExpire, writeFirstKey, undoExpire, 3, flagWrite)
+	RegisterCommand("PEXPIREAT", execPExpireAt, writeFirstKey, undoExpire, 3, flagWrite)
 	//registerCommand("PTTL", execPTTL, readFirstKey, nil, 2, flagReadOnly)
 	//registerCommand("Persist", execPersist, writeFirstKey, undoExpire, 2, flagWrite)
 	//registerCommand("Exists", execExists, readAllKeys, nil, -2, flagReadOnly)
