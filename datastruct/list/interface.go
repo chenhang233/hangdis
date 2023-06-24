@@ -17,5 +17,5 @@ type List interface {
 	Len() int
 	ForEach(consumer Consumer)
 	Contains(expected Expected) bool
-	Range(start int, stop int) []interface{}
+	Range(start int, stop int) []any
 }
