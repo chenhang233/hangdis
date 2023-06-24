@@ -4,6 +4,7 @@ import (
 	"hangdis/interface/redis"
 	"hangdis/redis/protocol"
 	"hangdis/utils"
+	"hangdis/utils/wildcard"
 	"time"
 )
 
@@ -37,11 +38,27 @@ func execTTL(db *DB, args [][]byte) redis.Reply {
 }
 
 func execKeys(db *DB, args [][]byte) redis.Reply {
-	return protocol.MakeOkReply()
+	pattern, err := wildcard.CompilePattern(string(args[0]))
+	if err != nil {
+		return protocol.MakeErrReply("ERR illegal wildcard")
+	}
+	keys := make([][]byte, 0)
+	db.data.ForEach(func(key string, val interface{}) bool {
+		if pattern.IsMatch(key) {
+			keys = append(keys, []byte(key))
+			return true
+		}
+		return false
+	})
+	return protocol.MakeMultiBulkReply(keys)
 }
 
 func init() {
-	RegisterCommand("Del", execDel, writeAllKeys, undoDel, -2, flagWrite)
+	RegisterCommand("DEL", execDel, writeAllKeys, undoDel, -2, flagWrite)
 	RegisterCommand("TTL", execTTL, readFirstKey, nil, 2, flagReadOnly)
-	RegisterCommand("Keys", execKeys, noPrepare, nil, 2, flagReadOnly)
+	RegisterCommand("KEYS", execKeys, noPrepare, nil, 2, flagReadOnly)
+	registerCommand("Expire", execExpire, writeFirstKey, undoExpire, 3, flagWrite)
+	registerCommand("ExpireAt", execExpireAt, writeFirstKey, undoExpire, 3, flagWrite)
+	registerCommand("ExpireTime", execExpireTime, readFirstKey, nil, 2, flagReadOnly)
+	registerCommand("PExpire", execPExpire, writeFirstKey, undoExpire, 3, flagWrite)
 }
