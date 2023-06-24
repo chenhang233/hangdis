@@ -122,13 +122,76 @@ func execExpire(db *DB, args [][]byte) redis.Reply {
 	return protocol.MakeIntReply(1)
 }
 
+func execExpireAt(db *DB, args [][]byte) redis.Reply {
+	key := string(args[0])
+	num, err := strconv.ParseInt(string(args[1]), 10, 64)
+	if err != nil {
+		return protocol.MakeErrReply("ERR value is not an integer or out of range")
+	}
+	_, exist := db.GetEntity(key)
+	if !exist {
+		return protocol.MakeIntReply(0)
+	}
+	policy := upsertPolicy
+	if len(args) > 2 {
+		op := string(args[2])
+		if op == "NX" {
+			policy = insertPolicy
+		} else if op == "XX" {
+			policy = updatePolicy
+		} else if op == "GT" {
+			policy = greaterExpiry
+		} else if op == "LT" {
+			policy = lessExpiry
+		} else {
+			return protocol.MakeSyntaxErrReply()
+		}
+	}
+	expireAt := time.Unix(num, 0)
+	switch policy {
+	case insertPolicy:
+		if db.IsExpired(key) {
+			return protocol.MakeIntReply(0)
+		}
+	case updatePolicy:
+		if !db.IsExpired(key) {
+			return protocol.MakeIntReply(0)
+		}
+	case greaterExpiry:
+		if !expireAt.After(db.GetExpiredTime(key)) {
+			return protocol.MakeIntReply(0)
+		}
+	case lessExpiry:
+		if expireAt.After(db.GetExpiredTime(key)) {
+			return protocol.MakeIntReply(0)
+		}
+	}
+	db.Expire(key, expireAt)
+	db.addAof(aof.MakeExpireCmd(key, expireAt).Args)
+	return protocol.MakeIntReply(1)
+}
+
+func execExpireTime(db *DB, args [][]byte) redis.Reply {
+	key := string(args[0])
+	_, exist := db.GetEntity(key)
+	if !exist {
+		return protocol.MakeIntReply(-2)
+	}
+	val, exists := db.ttlMap.Get(key)
+	if !exists {
+		return protocol.MakeIntReply(-1)
+	}
+	t := val.(time.Time)
+	return protocol.MakeIntReply(t.Unix())
+}
+
 func init() {
 	RegisterCommand("DEL", execDel, writeAllKeys, undoDel, -2, flagWrite)
 	RegisterCommand("TTL", execTTL, readFirstKey, nil, 2, flagReadOnly)
 	RegisterCommand("KEYS", execKeys, noPrepare, nil, 2, flagReadOnly)
 	RegisterCommand("EXPIRE", execExpire, writeFirstKey, undoExpire, -3, flagWrite)
-	//registerCommand("ExpireAt", execExpireAt, writeFirstKey, undoExpire, 3, flagWrite)
-	//registerCommand("ExpireTime", execExpireTime, readFirstKey, nil, 2, flagReadOnly)
+	RegisterCommand("EXPIREAT", execExpireAt, writeFirstKey, undoExpire, -3, flagWrite)
+	RegisterCommand("EXPIRETIME", execExpireTime, readFirstKey, nil, 2, flagReadOnly)
 	//registerCommand("PExpire", execPExpire, writeFirstKey, undoExpire, 3, flagWrite)
 	//registerCommand("PExpireAt", execPExpireAt, writeFirstKey, undoExpire, 3, flagWrite)
 	//registerCommand("PTTL", execPTTL, readFirstKey, nil, 2, flagReadOnly)
