@@ -2,6 +2,8 @@ package database
 
 import (
 	"hangdis/aof"
+	"hangdis/datastruct/dict"
+	"hangdis/datastruct/list"
 	"hangdis/interface/redis"
 	"hangdis/redis/protocol"
 	"hangdis/utils"
@@ -324,6 +326,84 @@ func execExists(db *DB, args [][]byte) redis.Reply {
 	return protocol.MakeIntReply(result)
 }
 
+func execType(db *DB, args [][]byte) redis.Reply {
+	key := string(args[0])
+	entity, exists := db.GetEntity(key)
+	if !exists {
+		return protocol.MakeStatusReply("none")
+	}
+	switch entity.Data.(type) {
+	case []byte:
+		return protocol.MakeStatusReply("string")
+	case list.List:
+		return protocol.MakeStatusReply("list")
+	case dict.Dict:
+		return protocol.MakeStatusReply("hash")
+	}
+	return protocol.MakeErrReply("Err unknown")
+}
+
+func prepareRename(args [][]byte) ([]string, []string) {
+	src := string(args[0])
+	dest := string(args[1])
+	return []string{dest}, []string{src}
+}
+
+func undoRename(db *DB, args [][]byte) []CmdLine {
+	src := string(args[0])
+	dest := string(args[1])
+	return rollbackGivenKeys(db, src, dest)
+}
+
+func execRename(db *DB, args [][]byte) redis.Reply {
+	src := string(args[0])
+	dest := string(args[1])
+	if len(args) > 2 {
+		return protocol.MakeErrReply("ERR wrong number of arguments for 'rename' command")
+	}
+	entity, exist := db.GetEntity(src)
+	if !exist {
+		return protocol.MakeErrReply("no such key")
+	}
+	val, hasTTL := db.ttlMap.Get(src)
+	db.PutEntity(dest, entity)
+	db.Remove(src)
+	if hasTTL {
+		db.Persist(dest)
+		t := val.(time.Time)
+		db.Expire(dest, t)
+	}
+	db.addAof(utils.ToCmdLine3("rename", args...))
+	return protocol.MakeOkReply()
+}
+
+func execRenameNx(db *DB, args [][]byte) redis.Reply {
+	src := string(args[0])
+	dest := string(args[1])
+	if len(args) > 2 {
+		return protocol.MakeErrReply("ERR wrong number of arguments for 'rename' command")
+
+	}
+	_, exist := db.GetEntity(dest)
+	if exist {
+		return protocol.MakeIntReply(0)
+	}
+	entity, exist := db.GetEntity(src)
+	if !exist {
+		return protocol.MakeErrReply("no such key")
+	}
+	val, hasTTL := db.ttlMap.Get(src)
+	db.PutEntity(dest, entity)
+	db.Remove(src)
+	if hasTTL {
+		db.Persist(dest)
+		t := val.(time.Time)
+		db.Expire(dest, t)
+	}
+	db.addAof(utils.ToCmdLine3("renamenx", args...))
+	return protocol.MakeOkReply()
+}
+
 func init() {
 	RegisterCommand("DEL", execDel, writeAllKeys, undoDel, -2, flagWrite)
 	RegisterCommand("TTL", execTTL, readFirstKey, nil, 2, flagReadOnly)
@@ -336,7 +416,7 @@ func init() {
 	RegisterCommand("PTTL", execPTTL, readFirstKey, nil, 2, flagReadOnly)
 	RegisterCommand("PERSIST", execPersist, writeFirstKey, undoExpire, 2, flagWrite)
 	RegisterCommand("EXISTS", execExists, readAllKeys, nil, -2, flagReadOnly)
-	//registerCommand("Type", execType, readFirstKey, nil, 2, flagReadOnly)
-	//registerCommand("Rename", execRename, prepareRename, undoRename, 3, flagReadOnly)
-	//registerCommand("RenameNx", execRenameNx, prepareRename, undoRename, 3, flagReadOnly)
+	RegisterCommand("TYPE", execType, readFirstKey, nil, 2, flagReadOnly)
+	RegisterCommand("RENAME", execRename, prepareRename, undoRename, 3, flagReadOnly)
+	RegisterCommand("RENAMENX", execRenameNx, prepareRename, undoRename, 3, flagReadOnly)
 }
