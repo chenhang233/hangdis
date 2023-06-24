@@ -283,6 +283,47 @@ func execPExpireAt(db *DB, args [][]byte) redis.Reply {
 	return protocol.MakeIntReply(1)
 }
 
+func execPTTL(db *DB, args [][]byte) redis.Reply {
+	key := string(args[0])
+	_, e := db.GetEntity(key)
+	if !e {
+		return protocol.MakeIntReply(-2)
+	}
+	val, exists := db.ttlMap.Get(key)
+	if !exists {
+		return protocol.MakeIntReply(-1)
+	}
+	t := val.(time.Time)
+	ttl := t.Sub(time.Now())
+	return protocol.MakeIntReply(int64(ttl))
+}
+
+func execPersist(db *DB, args [][]byte) redis.Reply {
+	key := string(args[0])
+	_, e := db.GetEntity(key)
+	if !e {
+		return protocol.MakeIntReply(-2)
+	}
+	_, exists := db.ttlMap.Get(key)
+	if !exists {
+		return protocol.MakeIntReply(-1)
+	}
+	db.Persist(key)
+	db.addAof(utils.ToCmdLine3("persist", args...))
+	return protocol.MakeIntReply(1)
+}
+
+func execExists(db *DB, args [][]byte) redis.Reply {
+	result := int64(0)
+	for _, arg := range args {
+		_, exist := db.GetEntity(string(arg))
+		if exist {
+			result++
+		}
+	}
+	return protocol.MakeIntReply(result)
+}
+
 func init() {
 	RegisterCommand("DEL", execDel, writeAllKeys, undoDel, -2, flagWrite)
 	RegisterCommand("TTL", execTTL, readFirstKey, nil, 2, flagReadOnly)
@@ -292,9 +333,9 @@ func init() {
 	RegisterCommand("EXPIRETIME", execExpireTime, readFirstKey, nil, 2, flagReadOnly)
 	RegisterCommand("PEXPIRE", execPExpire, writeFirstKey, undoExpire, 3, flagWrite)
 	RegisterCommand("PEXPIREAT", execPExpireAt, writeFirstKey, undoExpire, 3, flagWrite)
-	//registerCommand("PTTL", execPTTL, readFirstKey, nil, 2, flagReadOnly)
-	//registerCommand("Persist", execPersist, writeFirstKey, undoExpire, 2, flagWrite)
-	//registerCommand("Exists", execExists, readAllKeys, nil, -2, flagReadOnly)
+	RegisterCommand("PTTL", execPTTL, readFirstKey, nil, 2, flagReadOnly)
+	RegisterCommand("PERSIST", execPersist, writeFirstKey, undoExpire, 2, flagWrite)
+	RegisterCommand("EXISTS", execExists, readAllKeys, nil, -2, flagReadOnly)
 	//registerCommand("Type", execType, readFirstKey, nil, 2, flagReadOnly)
 	//registerCommand("Rename", execRename, prepareRename, undoRename, 3, flagReadOnly)
 	//registerCommand("RenameNx", execRenameNx, prepareRename, undoRename, 3, flagReadOnly)

@@ -17,7 +17,6 @@ import (
 const (
 	dataDictSize = 1 << 16
 	ttlDictSize  = 1 << 10
-	lockerSize   = 1024
 )
 
 type DB struct {
