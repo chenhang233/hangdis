@@ -37,7 +37,6 @@ func (iter *iterator) next() bool {
 	return true
 }
 func (iter *iterator) prev() bool {
-	page := iter.page()
 	if iter.offset > 0 {
 		iter.offset--
 		return true
