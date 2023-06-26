@@ -7,6 +7,7 @@ import (
 	"hangdis/redis/protocol"
 	"hangdis/utils"
 	"strconv"
+	"strings"
 )
 
 func (db *DB) getAsList(key string) (List.List, redis.ErrorReply) {
@@ -455,6 +456,73 @@ func execLRange(db *DB, args [][]byte) redis.Reply {
 	return protocol.MakeMultiBulkReply(res)
 }
 
+func execLTrim(db *DB, args [][]byte) redis.Reply {
+	key := string(args[0])
+	start64, err := strconv.ParseInt(string(args[1]), 10, 64)
+	if err != nil {
+		return protocol.MakeErrReply("ERR value is not an integer or out of range")
+	}
+	stop64, err := strconv.ParseInt(string(args[2]), 10, 64)
+	if err != nil {
+		return protocol.MakeErrReply("ERR value is not an integer or out of range")
+	}
+	list, err2 := db.getAsList(key)
+	if err2 != nil {
+		return err2
+	}
+	if list == nil {
+		return protocol.MakeEmptyMultiBulkReply()
+	}
+	size := list.Len()
+	start, end := utils.ConvertRange(start64, stop64, int64(size))
+	if start < 0 {
+		return protocol.MakeEmptyMultiBulkReply()
+	}
+	for i := 0; i < start; i++ {
+		list.Remove(0)
+	}
+	for i := 0; i < size-end; i++ {
+		list.RemoveLast()
+	}
+	db.addAof(utils.ToCmdLine3("ltrim", args...))
+	return protocol.MakeOkReply()
+}
+
+func execLInsert(db *DB, args [][]byte) redis.Reply {
+	key := string(args[0])
+	lower := strings.ToLower(string(args[1]))
+	pivot := args[2]
+	val := args[3]
+	if lower != "before" && lower != "after" {
+		return protocol.MakeErrReply("ERR syntax error")
+	}
+	list, err := db.getAsList(key)
+	if err != nil {
+		return err
+	}
+	if list == nil {
+		return protocol.MakeIntReply(0)
+	}
+	index := -1
+	list.ForEach(func(i int, v any) bool {
+		if utils.Equals(v, pivot) {
+			index = i
+			return false
+		}
+		return true
+	})
+	if index == -1 {
+		return protocol.MakeIntReply(-1)
+	}
+	if lower == "before" {
+		list.Insert(index, val)
+	} else {
+		list.Insert(index+1, val)
+	}
+	db.addAof(utils.ToCmdLine3("linsert", args...))
+	return protocol.MakeIntReply(int64(list.Len()))
+}
+
 func init() {
 	RegisterCommand("LPUSH", execLPush, writeFirstKey, undoLPush, -3, flagWrite)
 	RegisterCommand("LPUSHX", execLPushX, writeFirstKey, undoLPush, -3, flagWrite)
@@ -468,6 +536,6 @@ func init() {
 	RegisterCommand("LINDEX", execLIndex, readFirstKey, nil, 3, flagReadOnly)
 	RegisterCommand("LSET", execLSet, writeFirstKey, undoLSet, 4, flagWrite)
 	RegisterCommand("LRANGE", execLRange, readFirstKey, nil, 4, flagReadOnly)
-	//registerCommand("LTrim", execLTrim, writeFirstKey, rollbackFirstKey, 4, flagWrite)
-	//registerCommand("LInsert", execLInsert, writeFirstKey, rollbackFirstKey, 5, flagWrite)
+	RegisterCommand("LTRIM", execLTrim, writeFirstKey, rollbackFirstKey, 4, flagWrite)
+	RegisterCommand("LINSERT", execLInsert, writeFirstKey, rollbackFirstKey, 5, flagWrite)
 }
