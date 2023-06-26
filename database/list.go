@@ -120,6 +120,37 @@ func undoRPopLPush(db *DB, args [][]byte) []CmdLine {
 	}
 }
 
+func undoLSet(db *DB, args [][]byte) []CmdLine {
+	key := string(args[0])
+	index64, err := strconv.ParseInt(string(args[1]), 10, 64)
+	if err != nil {
+		return nil
+	}
+	index := int(index64)
+	list, errReply := db.getAsList(key)
+	if errReply != nil {
+		return nil
+	}
+	if list == nil {
+		return nil
+	}
+	size := list.Len()
+	if index >= size || index < -size {
+		return nil
+	} else if index < 0 {
+		index = size + index
+	}
+	value, _ := list.Get(index).([]byte)
+	return []CmdLine{
+		{
+			[]byte("LSET"),
+			args[0],
+			args[1],
+			value,
+		},
+	}
+}
+
 func execLPush(db *DB, args [][]byte) redis.Reply {
 	key := string(args[0])
 	values := args[1:]
@@ -330,6 +361,100 @@ func execLRem(db *DB, args [][]byte) redis.Reply {
 	return protocol.MakeIntReply(int64(removed))
 }
 
+func execLLen(db *DB, args [][]byte) redis.Reply {
+	key := string(args[0])
+	list, err := db.getAsList(key)
+	if err != nil {
+		return err
+	}
+	if list == nil {
+		return protocol.MakeIntReply(0)
+	}
+	return protocol.MakeIntReply(int64(list.Len()))
+}
+
+func execLIndex(db *DB, args [][]byte) redis.Reply {
+	key := string(args[0])
+	index64, err := strconv.ParseInt(string(args[1]), 10, 64)
+	if err != nil {
+		return protocol.MakeErrReply("ERR value is not an integer or out of range")
+	}
+	index := int(index64)
+	list, err2 := db.getAsList(key)
+	if err2 != nil {
+		return err2
+	}
+	if list == nil {
+		return protocol.MakeEmptyMultiBulkReply()
+	}
+	size := list.Len()
+	if index >= size || index < -size {
+		return protocol.MakeEmptyMultiBulkReply()
+	} else if index < 0 {
+		index = size + index
+	}
+	res := list.Get(index).([]byte)
+	return protocol.MakeBulkReply(res)
+}
+
+func execLSet(db *DB, args [][]byte) redis.Reply {
+	key := string(args[0])
+	index64, err := strconv.ParseInt(string(args[1]), 10, 64)
+	if err != nil {
+		return protocol.MakeErrReply("ERR value is not an integer or out of range")
+	}
+	index := int(index64)
+	list, err2 := db.getAsList(key)
+	if err2 != nil {
+		return err2
+	}
+	if list == nil {
+		return protocol.MakeEmptyMultiBulkReply()
+	}
+	size := list.Len()
+	if index >= size || index < -size {
+		return protocol.MakeEmptyMultiBulkReply()
+	} else if index < 0 {
+		index = size + index
+	}
+	list.Set(index, args[2])
+	db.addAof(utils.ToCmdLine3("lset", args...))
+	return protocol.MakeOkReply()
+}
+
+func execLRange(db *DB, args [][]byte) redis.Reply {
+	key := string(args[0])
+	start64, err := strconv.ParseInt(string(args[1]), 10, 64)
+	if err != nil {
+		return protocol.MakeErrReply("ERR value is not an integer or out of range")
+	}
+	stop64, err := strconv.ParseInt(string(args[2]), 10, 64)
+	if err != nil {
+		return protocol.MakeErrReply("ERR value is not an integer or out of range")
+	}
+	list, err2 := db.getAsList(key)
+	if err2 != nil {
+		return err2
+	}
+	if list == nil {
+		return protocol.MakeEmptyMultiBulkReply()
+	}
+	size := list.Len()
+	start, end := utils.ConvertRange(start64, stop64, int64(size))
+	if start < 0 {
+		return protocol.MakeEmptyMultiBulkReply()
+	}
+	slice := list.Range(start, end)
+	res := make([][]byte, len(slice))
+	for i, a := range slice {
+		res[i] = a.([]byte)
+	}
+	if len(res) == 0 {
+		return protocol.MakeEmptyMultiBulkReply()
+	}
+	return protocol.MakeMultiBulkReply(res)
+}
+
 func init() {
 	RegisterCommand("LPUSH", execLPush, writeFirstKey, undoLPush, -3, flagWrite)
 	RegisterCommand("LPUSHX", execLPushX, writeFirstKey, undoLPush, -3, flagWrite)
@@ -339,4 +464,10 @@ func init() {
 	RegisterCommand("RPOP", execRPop, writeFirstKey, undoRPop, -2, flagWrite)
 	RegisterCommand("RPOPLPUSH", execRPopLPush, prepareRPopLPush, undoRPopLPush, 3, flagWrite)
 	RegisterCommand("LREM", execLRem, writeFirstKey, rollbackFirstKey, 4, flagWrite)
+	RegisterCommand("LLEN", execLLen, readFirstKey, nil, 2, flagReadOnly)
+	RegisterCommand("LINDEX", execLIndex, readFirstKey, nil, 3, flagReadOnly)
+	RegisterCommand("LSET", execLSet, writeFirstKey, undoLSet, 4, flagWrite)
+	RegisterCommand("LRANGE", execLRange, readFirstKey, nil, 4, flagReadOnly)
+	//registerCommand("LTrim", execLTrim, writeFirstKey, rollbackFirstKey, 4, flagWrite)
+	//registerCommand("LInsert", execLInsert, writeFirstKey, rollbackFirstKey, 5, flagWrite)
 }
