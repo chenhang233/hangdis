@@ -149,18 +149,88 @@ func execHDel(db *DB, args [][]byte) redis.Reply {
 	return protocol.MakeIntReply(int64(deleted))
 }
 
+func execHLen(db *DB, args [][]byte) redis.Reply {
+	key := string(args[0])
+	dict, err := db.getAsDict(key)
+	if err != nil {
+		return err
+	}
+	if dict == nil {
+		return protocol.MakeIntReply(0)
+	}
+	return protocol.MakeIntReply(int64(dict.Len()))
+}
+
+func execHStrlen(db *DB, args [][]byte) redis.Reply {
+	key := string(args[0])
+	fields := string(args[1])
+	dict, err := db.getAsDict(key)
+	if err != nil {
+		return err
+	}
+	if dict == nil {
+		return protocol.MakeIntReply(0)
+	}
+	val, exists := dict.Get(fields)
+	if !exists {
+		return protocol.MakeIntReply(0)
+	}
+	return protocol.MakeIntReply(int64(len(val.([]byte))))
+}
+
+func execHMSet(db *DB, args [][]byte) redis.Reply {
+	return execHSet(db, args)
+}
+
+func execHMGet(db *DB, args [][]byte) redis.Reply {
+	key := string(args[0])
+	fields := args[1:]
+	dict, err := db.getAsDict(key)
+	if err != nil {
+		return err
+	}
+	if dict == nil {
+		return protocol.MakeEmptyMultiBulkReply()
+	}
+	res := make([][]byte, len(fields))
+	for i, field := range fields {
+		val, exists := dict.Get(string(field))
+		if exists {
+			res[i] = val.([]byte)
+		}
+	}
+	return protocol.MakeMultiBulkReply(res)
+}
+
+func execHKeys(db *DB, args [][]byte) redis.Reply {
+	key := string(args[0])
+	dict, err := db.getAsDict(key)
+	if err != nil {
+		return err
+	}
+	if dict == nil {
+		return protocol.MakeEmptyMultiBulkReply()
+	}
+	keys := dict.Keys()
+	fields := make([][]byte, len(keys))
+	for i, key := range keys {
+		fields[i] = []byte(key)
+	}
+	return protocol.MakeMultiBulkReply(fields)
+}
+
 func init() {
 	RegisterCommand("HSET", execHSet, writeFirstKey, undoHSet, -4, flagWrite).addParity(even)
 	RegisterCommand("HSETNX", execHSetNX, writeFirstKey, undoHSet, 4, flagWrite)
 	RegisterCommand("HGET", execHGet, readFirstKey, nil, 3, flagReadOnly)
 	RegisterCommand("HEXISTS", execHExists, readFirstKey, nil, 3, flagReadOnly)
 	RegisterCommand("HDEL", execHDel, writeFirstKey, undoHDel, -3, flagWrite)
-	//registerCommand("HLen", execHLen, readFirstKey, nil, 2, flagReadOnly)
-	//registerCommand("HStrlen", execHStrlen, readFirstKey, nil, 3, flagReadOnly)
-	//registerCommand("HMSet", execHMSet, writeFirstKey, undoHMSet, -4, flagWrite)
-	//registerCommand("HMGet", execHMGet, readFirstKey, nil, -3, flagReadOnly)
-	//registerCommand("HKeys", execHKeys, readFirstKey, nil, 2, flagReadOnly)
-	//registerCommand("HVals", execHVals, readFirstKey, nil, 2, flagReadOnly)
+	RegisterCommand("HLEN", execHLen, readFirstKey, nil, 2, flagReadOnly)
+	RegisterCommand("HSTRlEN", execHStrlen, readFirstKey, nil, 3, flagReadOnly)
+	RegisterCommand("HMSET", execHMSet, writeFirstKey, undoHSet, -4, flagWrite).addParity(even)
+	RegisterCommand("HMGET", execHMGet, readFirstKey, nil, -3, flagReadOnly)
+	RegisterCommand("HKEYS", execHKeys, readFirstKey, nil, 2, flagReadOnly)
+	//RegisterCommand("HVals", execHVals, readFirstKey, nil, 2, flagReadOnly)
 	//registerCommand("HGetAll", execHGetAll, readFirstKey, nil, 2, flagReadOnly)
 	//registerCommand("HIncrBy", execHIncrBy, writeFirstKey, undoHIncr, 4, flagWrite)
 	//registerCommand("HIncrByFloat", execHIncrByFloat, writeFirstKey, undoHIncr, 4, flagWrite)
