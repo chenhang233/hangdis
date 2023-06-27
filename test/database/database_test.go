@@ -34,3 +34,12 @@ func TestUnixTime(t *testing.T) {
 	unix := time.Unix(num, 0)
 	fmt.Println(unix)
 }
+
+func TestStrToInt(t *testing.T) {
+	a := "5"
+	delta, err := strconv.ParseInt(a, 10, 64)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(delta, " d")
+}

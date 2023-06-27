@@ -6,6 +6,8 @@ import (
 	"hangdis/interface/redis"
 	"hangdis/redis/protocol"
 	"hangdis/utils"
+	"strconv"
+	"strings"
 )
 
 func (db *DB) getAsDict(key string) (Dict.Dict, redis.ErrorReply) {
@@ -56,6 +58,12 @@ func undoHDel(db *DB, args [][]byte) []CmdLine {
 		fields[i] = string(v)
 	}
 	return rollbackHashFields(db, key, fields...)
+}
+
+func undoHIncr(db *DB, args [][]byte) []CmdLine {
+	key := string(args[0])
+	field := string(args[1])
+	return rollbackHashFields(db, key, field)
 }
 
 func execHSet(db *DB, args [][]byte) redis.Reply {
@@ -219,6 +227,175 @@ func execHKeys(db *DB, args [][]byte) redis.Reply {
 	return protocol.MakeMultiBulkReply(fields)
 }
 
+func execHVals(db *DB, args [][]byte) redis.Reply {
+	key := string(args[0])
+	dict, err := db.getAsDict(key)
+	if err != nil {
+		return err
+	}
+	if dict == nil {
+		return protocol.MakeEmptyMultiBulkReply()
+	}
+	fields := make([][]byte, dict.Len())
+	i := 0
+	dict.ForEach(func(key string, val any) bool {
+		fields[i] = val.([]byte)
+		i++
+		return true
+	})
+	return protocol.MakeMultiBulkReply(fields)
+}
+
+func execHGetAll(db *DB, args [][]byte) redis.Reply {
+	key := string(args[0])
+	dict, err := db.getAsDict(key)
+	if err != nil {
+		return err
+	}
+	if dict == nil {
+		return protocol.MakeEmptyMultiBulkReply()
+	}
+	fields := make([][]byte, dict.Len()*2)
+	i := 0
+	j := 1
+	dict.ForEach(func(key string, val any) bool {
+		fields[i] = []byte(key)
+		fields[j] = val.([]byte)
+		i += 2
+		j += 2
+		return true
+	})
+	return protocol.MakeMultiBulkReply(fields)
+}
+
+func execHIncrBy(db *DB, args [][]byte) redis.Reply {
+	key := string(args[0])
+	field := string(args[1])
+	rawDelta := string(args[2])
+	delta, err := strconv.ParseInt(rawDelta, 10, 64)
+	if err != nil {
+		return protocol.MakeErrReply("ERR value is not an integer or out of range")
+	}
+	dict, _, err2 := db.getOrInitDict(key)
+	if err2 != nil {
+		return err2
+	}
+	value, exists := dict.Get(field)
+	if !exists {
+		dict.Put(field, args[2])
+		db.addAof(utils.ToCmdLine3("hincrby", args...))
+		return protocol.MakeIntReply(delta)
+	}
+	v := value.([]byte)
+	old, err := strconv.ParseInt(string(v), 10, 64)
+	if err != nil {
+		return protocol.MakeErrReply("ERR value is not an integer or out of range")
+	}
+	old += delta
+	bys := []byte(strconv.FormatInt(old, 10))
+	dict.Put(field, bys)
+	db.addAof(utils.ToCmdLine3("hincrby", args...))
+	return protocol.MakeIntReply(old)
+}
+
+func execHIncrByFloat(db *DB, args [][]byte) redis.Reply {
+	key := string(args[0])
+	field := string(args[1])
+	rawDelta := string(args[2])
+	delta, err := strconv.ParseFloat(rawDelta, 64)
+	if err != nil {
+		return protocol.MakeErrReply("ERR value is not an integer or out of range")
+	}
+	dict, _, err2 := db.getOrInitDict(key)
+	if err2 != nil {
+		return err2
+	}
+	value, exists := dict.Get(field)
+	if !exists {
+		dict.Put(field, args[2])
+		db.addAof(utils.ToCmdLine3("hincrby", args...))
+		return protocol.MakeBulkReply(args[2])
+	}
+	v := value.([]byte)
+	old, err := strconv.ParseFloat(string(v), 64)
+	if err != nil {
+		return protocol.MakeErrReply("ERR value is not an integer or out of range")
+	}
+	old += delta
+	bys := []byte(strconv.FormatFloat(old, 'f', -1, 64))
+	dict.Put(field, bys)
+	db.addAof(utils.ToCmdLine3("hincrby", args...))
+	return protocol.MakeBulkReply(bys)
+}
+
+func execHRandField(db *DB, args [][]byte) redis.Reply {
+	key := string(args[0])
+	count := 1
+	withvalues := 0
+	if len(args) > 3 {
+		return protocol.MakeErrReply("ERR wrong number of arguments for 'hrandfield' command")
+	}
+	if len(args) == 3 {
+		if strings.ToLower(string(args[2])) == "withvalues" {
+			withvalues = 1
+		} else {
+			return protocol.MakeSyntaxErrReply()
+		}
+	}
+	if len(args) >= 2 {
+		count64, err := strconv.ParseInt(string(args[1]), 10, 64)
+		if err != nil {
+			return protocol.MakeErrReply("ERR value is not an integer or out of range")
+		}
+		count = int(count64)
+	}
+	dict, errReply := db.getAsDict(key)
+	if errReply != nil {
+		return errReply
+	}
+	if dict == nil {
+		return &protocol.EmptyMultiBulkReply{}
+	}
+	if count > 0 {
+		fields := dict.RandomDistinctKeys(count)
+		Numfield := len(fields)
+		if withvalues == 0 {
+			result := make([][]byte, Numfield)
+			for i, v := range fields {
+				result[i] = []byte(v)
+			}
+			return protocol.MakeMultiBulkReply(result)
+		} else {
+			result := make([][]byte, 2*Numfield)
+			for i, v := range fields {
+				result[2*i] = []byte(v)
+				raw, _ := dict.Get(v)
+				result[2*i+1] = raw.([]byte)
+			}
+			return protocol.MakeMultiBulkReply(result)
+		}
+	} else if count < 0 {
+		fields := dict.RandomKeys(-count)
+		Numfield := len(fields)
+		if withvalues == 0 {
+			result := make([][]byte, Numfield)
+			for i, v := range fields {
+				result[i] = []byte(v)
+			}
+			return protocol.MakeMultiBulkReply(result)
+		} else {
+			result := make([][]byte, 2*Numfield)
+			for i, v := range fields {
+				result[2*i] = []byte(v)
+				raw, _ := dict.Get(v)
+				result[2*i+1] = raw.([]byte)
+			}
+			return protocol.MakeMultiBulkReply(result)
+		}
+	}
+	return &protocol.EmptyMultiBulkReply{}
+}
+
 func init() {
 	RegisterCommand("HSET", execHSet, writeFirstKey, undoHSet, -4, flagWrite).addParity(even)
 	RegisterCommand("HSETNX", execHSetNX, writeFirstKey, undoHSet, 4, flagWrite)
@@ -230,9 +407,9 @@ func init() {
 	RegisterCommand("HMSET", execHMSet, writeFirstKey, undoHSet, -4, flagWrite).addParity(even)
 	RegisterCommand("HMGET", execHMGet, readFirstKey, nil, -3, flagReadOnly)
 	RegisterCommand("HKEYS", execHKeys, readFirstKey, nil, 2, flagReadOnly)
-	//RegisterCommand("HVals", execHVals, readFirstKey, nil, 2, flagReadOnly)
-	//registerCommand("HGetAll", execHGetAll, readFirstKey, nil, 2, flagReadOnly)
-	//registerCommand("HIncrBy", execHIncrBy, writeFirstKey, undoHIncr, 4, flagWrite)
-	//registerCommand("HIncrByFloat", execHIncrByFloat, writeFirstKey, undoHIncr, 4, flagWrite)
-	//registerCommand("HRandField", execHRandField, readFirstKey, nil, -2, flagReadOnly)
+	RegisterCommand("HVALS", execHVals, readFirstKey, nil, 2, flagReadOnly)
+	RegisterCommand("HGETALL", execHGetAll, readFirstKey, nil, 2, flagReadOnly)
+	RegisterCommand("HINCRBY", execHIncrBy, writeFirstKey, undoHIncr, 4, flagWrite)
+	RegisterCommand("HINCRBYFLOAT", execHIncrByFloat, writeFirstKey, undoHIncr, 4, flagWrite)
+	RegisterCommand("HRANDFIELD", execHRandField, readFirstKey, nil, -2, flagReadOnly)
 }
