@@ -1,13 +1,13 @@
 package dict
 
-type Consumer func(key string, val interface{}) bool
+type Consumer func(key string, val any) bool
 
 type Dict interface {
-	Get(key string) (val interface{}, exists bool)
+	Get(key string) (val any, exists bool)
 	Len() int
-	Put(key string, val interface{}) (result int)
-	PutIfAbsent(key string, val interface{}) (result int)
-	PutIfExists(key string, val interface{}) (result int)
+	Put(key string, val any) (result int)
+	PutIfAbsent(key string, val any) (result int)
+	PutIfExists(key string, val any) (result int)
 	Remove(key string) (result int)
 	ForEach(consumer Consumer)
 	Keys() []string

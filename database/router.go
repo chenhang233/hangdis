@@ -28,8 +28,20 @@ var (
 	cmdTable    = make(map[string]*Command)
 )
 
+func checkTableExist(name string) {
+	_, exist := systemTable[name]
+	if exist {
+		panic("systemTable[name] exist")
+	}
+	_, exist = cmdTable[name]
+	if exist {
+		panic("systemTable[name] exist")
+	}
+}
+
 func RegisterSystemCommand(name string, executor SysExecFunc) {
 	name = strings.ToLower(name)
+	checkTableExist(name)
 	systemTable[name] = &systemCommand{
 		executor: executor,
 	}
@@ -37,6 +49,7 @@ func RegisterSystemCommand(name string, executor SysExecFunc) {
 
 func RegisterCommand(name string, executor ExecFunc, prepare PreFunc, rollback UndoFunc, arity int, flags int) *Command {
 	name = strings.ToLower(name)
+	checkTableExist(name)
 	cmd := &Command{
 		executor: executor,
 		prepare:  prepare,

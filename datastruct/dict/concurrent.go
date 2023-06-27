@@ -78,7 +78,7 @@ func MakeConcurrent(shardCount int) *ConcurrentDict {
 	}
 }
 
-func (dict *ConcurrentDict) Get(key string) (val interface{}, exists bool) {
+func (dict *ConcurrentDict) Get(key string) (val any, exists bool) {
 	if dict == nil {
 		panic("dict is nil")
 	}
@@ -91,7 +91,7 @@ func (dict *ConcurrentDict) Get(key string) (val interface{}, exists bool) {
 	return
 }
 
-func (dict *ConcurrentDict) GetWithLock(key string) (val interface{}, exists bool) {
+func (dict *ConcurrentDict) GetWithLock(key string) (val any, exists bool) {
 	if dict == nil {
 		panic("dict is nil")
 	}
@@ -108,7 +108,7 @@ func (dict *ConcurrentDict) Len() int {
 	}
 	return int(dict.count)
 }
-func (dict *ConcurrentDict) Put(key string, val interface{}) (result int) {
+func (dict *ConcurrentDict) Put(key string, val any) (result int) {
 	if dict == nil {
 		panic("dict is nil")
 	}
@@ -125,7 +125,7 @@ func (dict *ConcurrentDict) Put(key string, val interface{}) (result int) {
 	table.m[key] = val
 	return 1
 }
-func (dict *ConcurrentDict) PutIfAbsent(key string, val interface{}) (result int) {
+func (dict *ConcurrentDict) PutIfAbsent(key string, val any) (result int) {
 	if dict == nil {
 		panic("dict is nil")
 	}
@@ -141,7 +141,7 @@ func (dict *ConcurrentDict) PutIfAbsent(key string, val interface{}) (result int
 	table.m[key] = val
 	return 1
 }
-func (dict *ConcurrentDict) PutIfExists(key string, val interface{}) (result int) {
+func (dict *ConcurrentDict) PutIfExists(key string, val any) (result int) {
 	if dict == nil {
 		panic("dict is nil")
 	}
@@ -198,7 +198,7 @@ func (dict *ConcurrentDict) Keys() []string {
 	}
 	keys := make([]string, dict.Len())
 	i := 0
-	dict.ForEach(func(key string, val interface{}) bool {
+	dict.ForEach(func(key string, val any) bool {
 		if i < len(keys) {
 			keys[i] = key
 			i++
