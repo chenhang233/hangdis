@@ -5,6 +5,7 @@ import (
 	"hangdis/interface/database"
 	"hangdis/interface/redis"
 	"hangdis/redis/protocol"
+	"hangdis/utils"
 )
 
 func (db *DB) getAsDict(key string) (Dict.Dict, redis.ErrorReply) {
@@ -39,9 +40,9 @@ func undoHSet(db *DB, args [][]byte) []CmdLine {
 	args = args[1:]
 	n := len(args)
 	fields := make([]string, n/2)
-	for i, j := 0, 0; i < n; i++ {
+	for i, j := 0, 0; i < n; {
 		fields[j] = string(args[i])
-		i++
+		i += 2
 		j++
 	}
 	return rollbackHashFields(db, key, fields...)
@@ -49,12 +50,41 @@ func undoHSet(db *DB, args [][]byte) []CmdLine {
 
 func execHSet(db *DB, args [][]byte) redis.Reply {
 	key := string(args[0])
+	dict, _, err := db.getOrInitDict(key)
+	if err != nil {
+		return err
+	}
 	args = args[1:]
+	n := len(args)
+	res := 0
+	for i, j := 0, 1; i < n; {
+		k := string(args[i])
+		v := args[j]
+		res += dict.Put(k, v)
+		i += 2
+		j += 2
+	}
+	db.addAof(utils.ToCmdLine3("hset", args...))
+	return protocol.MakeIntReply(int64(res))
+}
+
+func execHSetNX(db *DB, args [][]byte) redis.Reply {
+	key := string(args[0])
+	field := string(args[1])
+	dict, _, err := db.getOrInitDict(key)
+	if err != nil {
+		return err
+	}
+	result := dict.PutIfAbsent(field, args[2])
+	if result > 0 {
+		db.addAof(utils.ToCmdLine3("hsetnx", args...))
+	}
+	return protocol.MakeIntReply(int64(result))
 }
 
 func init() {
-	RegisterCommand("HSet", execHSet, writeFirstKey, undoHSet, -4, flagWrite).addParity(even)
-	//registerCommand("HSetNX", execHSetNX, writeFirstKey, undoHSet, 4, flagWrite)
+	RegisterCommand("HSET", execHSet, writeFirstKey, undoHSet, -4, flagWrite).addParity(even)
+	RegisterCommand("HSETNX", execHSetNX, writeFirstKey, undoHSet, 4, flagWrite)
 	//registerCommand("HGet", execHGet, readFirstKey, nil, 3, flagReadOnly)
 	//registerCommand("HExists", execHExists, readFirstKey, nil, 3, flagReadOnly)
 }
