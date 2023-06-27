@@ -160,6 +160,23 @@ func validateArity(arity int, cmdArgs [][]byte) bool {
 	return -arity <= n
 }
 
+func validateParity(parity int, cmdArgs [][]byte) bool {
+	if parity == -1 {
+		return true
+	}
+	n := len(cmdArgs)
+	if n%2 == 0 {
+		if parity == odd {
+			return false
+		}
+	} else {
+		if parity == even {
+			return false
+		}
+	}
+	return true
+}
+
 func (db *DB) execNormalCommand(cmdLine [][]byte) redis.Reply {
 	cmdName := strings.ToLower(string(cmdLine[0]))
 	cmd, ok := cmdTable[cmdName]
@@ -168,6 +185,9 @@ func (db *DB) execNormalCommand(cmdLine [][]byte) redis.Reply {
 	}
 	if !validateArity(cmd.arity, cmdLine) {
 		return protocol.MakeErrReply("Check error  wrong number of arguments")
+	}
+	if !validateParity(cmd.parity, cmdLine) {
+		return protocol.MakeErrReply("Check error Parity")
 	}
 	prepare := cmd.prepare
 	write, read := prepare(cmdLine[1:])

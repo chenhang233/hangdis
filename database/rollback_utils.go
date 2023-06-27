@@ -45,3 +45,31 @@ func readAllKeys(args [][]byte) ([]string, []string) {
 func noPrepare(args [][]byte) ([]string, []string) {
 	return nil, nil
 }
+
+func rollbackHashFields(db *DB, key string, fields ...string) []CmdLine {
+	var undoCmdLines [][][]byte
+	dict, errReply := db.getAsDict(key)
+	if errReply != nil {
+		return nil
+	}
+	if dict == nil {
+		undoCmdLines = append(undoCmdLines,
+			utils.ToCmdLine("DEL", key),
+		)
+		return undoCmdLines
+	}
+	for _, field := range fields {
+		entity, ok := dict.Get(field)
+		if !ok {
+			undoCmdLines = append(undoCmdLines,
+				utils.ToCmdLine("HDEL", key, field),
+			)
+		} else {
+			value, _ := entity.([]byte)
+			undoCmdLines = append(undoCmdLines,
+				utils.ToCmdLine("HSET", key, field, string(value)),
+			)
+		}
+	}
+	return undoCmdLines
+}
