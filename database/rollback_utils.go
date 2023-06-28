@@ -100,3 +100,11 @@ func rollbackSetMembers(db *DB, key string, members ...string) []CmdLine {
 	}
 	return undoCmdLines
 }
+
+func prepareSetCalculate(args [][]byte) ([]string, []string) {
+	keys := make([]string, len(args))
+	for i, arg := range args {
+		keys[i] = string(arg)
+	}
+	return nil, keys
+}

@@ -78,7 +78,7 @@ func parseArray(line []byte, reader *bufio.Reader, ch chan<- *Payload) error {
 	num, err := strconv.ParseInt(string(line[1:]), 10, 64)
 	if err != nil {
 		return err
-	} else if num < 0 || num == 0 {
+	} else if num <= 0 {
 		return errors.New("parseArray illegal array header " + string(line[1:]))
 	}
 	lines := make([][]byte, 0, num)

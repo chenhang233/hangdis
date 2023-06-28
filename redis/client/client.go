@@ -5,6 +5,7 @@ import (
 	"hangdis/interface/redis"
 	"hangdis/redis/parser"
 	"hangdis/redis/protocol"
+	"hangdis/utils"
 	"net"
 	"sync"
 )
@@ -98,7 +99,7 @@ func (c *Client) handleRead() {
 			if c.Status == STOP {
 				return
 			}
-			fmt.Println("handleRead payload.Err:", payload.Err)
+			fmt.Println("client.go handleRead payload.Err:", utils.Red(payload.Err.Error()))
 			//c.Close()
 			return
 		}

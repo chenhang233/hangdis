@@ -62,9 +62,10 @@ func RegisterCommand(name string, executor ExecFunc, prepare PreFunc, rollback U
 	return cmd
 }
 
-func (c *Command) addParity(p int) {
+func (c *Command) addParity(p int) *Command {
 	if p != even && p != odd {
 		panic("p  must be even or odd")
 	}
 	c.parity = p
+	return c
 }

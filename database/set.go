@@ -6,6 +6,7 @@ import (
 	"hangdis/interface/redis"
 	"hangdis/redis/protocol"
 	"hangdis/utils"
+	"strconv"
 )
 
 func (db *DB) getAsSet(key string) (Set.Set, redis.ErrorReply) {
@@ -98,8 +99,86 @@ func execSRem(db *DB, args [][]byte) redis.Reply {
 	return protocol.MakeIntReply(int64(count))
 }
 
+func execSPop(db *DB, args [][]byte) redis.Reply {
+	key := string(args[0])
+	set, err := db.getAsSet(key)
+	if err != nil {
+		return err
+	}
+	if set == nil {
+		return protocol.MakeEmptyMultiBulkReply()
+	}
+	count := 1
+	if len(args) > 1 {
+		count64, err2 := strconv.ParseInt(string(args[1]), 10, 64)
+		if err2 != nil || count64 <= 0 {
+			return protocol.MakeErrReply("ERR value is out of range, must be positive")
+		}
+		count = int(count64)
+	}
+	n := set.Len()
+	if count > n {
+		count = n
+	}
+	if count == 0 {
+		return protocol.MakeEmptyMultiBulkReply()
+	}
+	slice := make([][]byte, count)
+	members := set.RandomDistinctMembers(count)
+	for i := 0; i < count; i++ {
+		slice[i] = []byte(members[i])
+		set.Remove(members[i])
+	}
+	if count > 0 {
+		db.addAof(utils.ToCmdLine3("spop", args...))
+	}
+	return protocol.MakeMultiBulkReply(slice)
+}
+
+func execSCard(db *DB, args [][]byte) redis.Reply {
+	key := string(args[0])
+	set, err := db.getAsSet(key)
+	if err != nil {
+		return err
+	}
+	if set == nil {
+		return protocol.MakeIntReply(0)
+	}
+	return protocol.MakeIntReply(int64(set.Len()))
+}
+
+func execSMembers(db *DB, args [][]byte) redis.Reply {
+	key := string(args[0])
+	set, err := db.getAsSet(key)
+	if err != nil {
+		return err
+	}
+	if set == nil {
+		return protocol.MakeEmptyMultiBulkReply()
+	}
+	res := make([][]byte, set.Len())
+	for i, s := range set.ToSlice() {
+		res[i] = []byte(s)
+	}
+	return protocol.MakeMultiBulkReply(res)
+}
+
+func execSInter(db *DB, args [][]byte) redis.Reply {
+
+}
+
 func init() {
 	RegisterCommand("SADD", execSAdd, writeFirstKey, undoSetChange, -3, flagWrite)
 	RegisterCommand("SISMEMBER", execSIsMember, readFirstKey, nil, 3, flagReadOnly)
 	RegisterCommand("SREM", execSRem, writeFirstKey, undoSetChange, -3, flagWrite)
+	RegisterCommand("SPOP", execSPop, writeFirstKey, undoSetChange, -2, flagWrite)
+	RegisterCommand("SCARD", execSCard, readFirstKey, nil, 2, flagReadOnly)
+	RegisterCommand("SMEMBERS", execSMembers, readFirstKey, nil, 2, flagReadOnly)
+	RegisterCommand("SInter", execSInter, prepareSetCalculate, nil, -2, flagReadOnly)
+	//registerCommand("SInterStore", execSInterStore, prepareSetCalculateStore, rollbackFirstKey, -3, flagWrite)
+	//registerCommand("SUnion", execSUnion, prepareSetCalculate, nil, -2, flagReadOnly)
+	//registerCommand("SUnionStore", execSUnionStore, prepareSetCalculateStore, rollbackFirstKey, -3, flagWrite)
+	//registerCommand("SDiff", execSDiff, prepareSetCalculate, nil, -2, flagReadOnly)
+	//registerCommand("SDiffStore", execSDiffStore, prepareSetCalculateStore, rollbackFirstKey, -3, flagWrite)
+	//registerCommand("SRandMember", execSRandMember, readFirstKey, nil, -2, flagReadOnly)
 }
