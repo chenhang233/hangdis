@@ -8,6 +8,7 @@ type Set interface {
 	Len() int
 	ToSlice() []string
 	ForEach(consumer Consumer)
+	ShallowCopy() Set
 	RandomMembers(limit int) []string
 	RandomDistinctMembers(limit int) []string
 }

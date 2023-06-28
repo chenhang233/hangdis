@@ -208,6 +208,7 @@ func execSInterStore(db *DB, args [][]byte) redis.Reply {
 		sets[i-1] = &set
 	}
 	intersect := Set.Intersect(sets...)
+	db.Remove(dest)
 	db.PutEntity(dest, &database.DataEntity{Data: intersect})
 	db.addAof(utils.ToCmdLine3("sinterstore", args...))
 	return protocol.MakeIntReply(int64(intersect.Len()))
@@ -229,7 +230,103 @@ func execSUnion(db *DB, args [][]byte) redis.Reply {
 	}
 	union := Set.Union(sets...)
 	return setReply(&union)
+}
 
+func execSUnionStore(db *DB, args [][]byte) redis.Reply {
+	dest := string(args[0])
+	n := len(args) - 1
+	sets := make([]*Set.Set, n)
+	for i := 1; i <= n; i++ {
+		key := string(args[i])
+		set, err := db.getAsSet(key)
+		if err != nil {
+			return err
+		}
+		if set == nil {
+			return protocol.MakeIntReply(0)
+		}
+		sets[i-1] = &set
+	}
+	union := Set.Union(sets...)
+	db.Remove(dest)
+	if union.Len() == 0 {
+		return protocol.MakeIntReply(0)
+	}
+	db.PutEntity(dest, &database.DataEntity{Data: union})
+	db.addAof(utils.ToCmdLine3("sunionstore", args...))
+	return protocol.MakeIntReply(int64(union.Len()))
+}
+
+func execSDiff(db *DB, args [][]byte) redis.Reply {
+	n := len(args)
+	sets := make([]*Set.Set, n)
+	for i := 0; i < n; i++ {
+		key := string(args[i])
+		set, err := db.getAsSet(key)
+		if err != nil {
+			return err
+		}
+		sets[i] = &set
+	}
+	diff := Set.Diff(sets...)
+	return setReply(&diff)
+}
+
+func execSDiffStore(db *DB, args [][]byte) redis.Reply {
+	dest := string(args[0])
+	n := len(args) - 1
+	sets := make([]*Set.Set, n)
+	for i := 1; i <= n; i++ {
+		key := string(args[i])
+		set, err := db.getAsSet(key)
+		if err != nil {
+			return err
+		}
+		if set == nil {
+			return protocol.MakeIntReply(0)
+		}
+		sets[i-1] = &set
+	}
+	diff := Set.Diff(sets...)
+	db.Remove(dest)
+	if diff.Len() == 0 {
+		return protocol.MakeIntReply(0)
+	}
+	db.PutEntity(dest, &database.DataEntity{Data: diff})
+	db.addAof(utils.ToCmdLine3("sdiffstore", args...))
+	return protocol.MakeIntReply(int64(diff.Len()))
+}
+
+func execSRandMember(db *DB, args [][]byte) redis.Reply {
+	key := string(args[0])
+	set, err := db.getAsSet(key)
+	if err != nil {
+		return err
+	}
+	if set == nil {
+		return protocol.MakeEmptyMultiBulkReply()
+	}
+	count := 1
+	if len(args) > 1 {
+		count64, err2 := strconv.ParseInt(string(args[1]), 10, 64)
+		if err2 != nil || count64 <= 0 {
+			return protocol.MakeErrReply("ERR value is out of range, must be positive")
+		}
+		count = int(count64)
+	}
+	n := set.Len()
+	if count > n {
+		count = n
+	}
+	if count == 0 {
+		return protocol.MakeEmptyMultiBulkReply()
+	}
+	slice := make([][]byte, count)
+	members := set.RandomDistinctMembers(count)
+	for i := 0; i < count; i++ {
+		slice[i] = []byte(members[i])
+	}
+	return protocol.MakeMultiBulkReply(slice)
 }
 
 func init() {
@@ -242,8 +339,8 @@ func init() {
 	RegisterCommand("SINTER", execSInter, prepareSetCalculate, nil, -2, flagReadOnly)
 	RegisterCommand("SINTERSTORE", execSInterStore, prepareSetCalculateStore, rollbackFirstKey, -3, flagWrite)
 	RegisterCommand("SUNION", execSUnion, prepareSetCalculate, nil, -2, flagReadOnly)
-	//registerCommand("SUnionStore", execSUnionStore, prepareSetCalculateStore, rollbackFirstKey, -3, flagWrite)
-	//registerCommand("SDiff", execSDiff, prepareSetCalculate, nil, -2, flagReadOnly)
-	//registerCommand("SDiffStore", execSDiffStore, prepareSetCalculateStore, rollbackFirstKey, -3, flagWrite)
-	//registerCommand("SRandMember", execSRandMember, readFirstKey, nil, -2, flagReadOnly)
+	RegisterCommand("SUNIONSTORE", execSUnionStore, prepareSetCalculateStore, rollbackFirstKey, -3, flagWrite)
+	RegisterCommand("SDIFF", execSDiff, prepareSetCalculate, nil, -2, flagReadOnly)
+	RegisterCommand("SDIFFSTORE", execSDiffStore, prepareSetCalculateStore, rollbackFirstKey, -3, flagWrite)
+	RegisterCommand("SRANDMEMBER", execSRandMember, readFirstKey, nil, -2, flagReadOnly)
 }

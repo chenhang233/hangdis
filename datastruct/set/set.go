@@ -66,7 +66,7 @@ func (set *InstanceSet) ForEach(consumer Consumer) {
 	})
 }
 
-func (set *InstanceSet) ShallowCopy() *InstanceSet {
+func (set *InstanceSet) ShallowCopy() Set {
 	result := Make()
 	set.ForEach(func(member string) bool {
 		result.Add(member)
@@ -116,10 +116,11 @@ func Union(sets ...*Set) Set {
 	return res
 }
 
-func Diff(sets ...*InstanceSet) *InstanceSet {
-	res := sets[0].ShallowCopy()
+func Diff(sets ...*Set) Set {
+	f := sets[0]
+	res := (*f).ShallowCopy()
 	for i := 1; i < len(sets); i++ {
-		sets[i].ForEach(func(member string) bool {
+		(*sets[i]).ForEach(func(member string) bool {
 			res.Remove(member)
 			return true
 		})

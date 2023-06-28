@@ -9,6 +9,7 @@ import (
 	"hangdis/utils/logs"
 	"io"
 	"strconv"
+	"strings"
 )
 
 type Payload struct {
@@ -27,7 +28,9 @@ func parse(rawReader io.Reader, ch chan<- *Payload) {
 	for {
 		line, err := reader.ReadBytes('\n')
 		if err != nil {
-			ch <- &Payload{Err: err}
+			if !strings.Contains(err.Error(), "use of closed network connection") {
+				ch <- &Payload{Err: err}
+			}
 			close(ch)
 			return
 		}
