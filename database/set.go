@@ -32,3 +32,7 @@ func (db *DB) getOrInitSet(key string) (Set.Set, bool, redis.ErrorReply) {
 	}
 	return set, isNew, nil
 }
+
+func init() {
+	//registerCommand("SAdd", execSAdd, writeFirstKey, undoSetChange, -3, flagWrite)
+}

@@ -10,29 +10,118 @@ func Make(members ...string) *InstanceSet {
 	set := &InstanceSet{
 		dict: dict.MakeInstanceDict(),
 	}
-
+	for _, member := range members {
+		set.Add(member)
+	}
 	return set
 }
 
-func (set *InstanceSet) Add(val string) int {}
+func (set *InstanceSet) Add(val string) int {
+	return set.dict.Put(val, nil)
+}
 
-func (set *InstanceSet) Remove(val string) int {}
+func (set *InstanceSet) Remove(val string) int {
+	return set.dict.Remove(val)
+}
 
-func (set *InstanceSet) Has(val string) bool {}
-func (set *InstanceSet) Len() int            {}
+func (set *InstanceSet) Has(val string) bool {
+	if set == nil || set.dict == nil {
+		return false
+	}
+	_, exists := set.dict.Get(val)
+	return exists
+}
+func (set *InstanceSet) Len() int {
+	if set == nil || set.dict == nil {
+		return 0
+	}
+	return set.dict.Len()
+}
 
-func (set *InstanceSet) ToSlice() []string {}
+func (set *InstanceSet) ToSlice() []string {
+	n := set.dict.Len()
+	slice := make([]string, n)
+	i := 0
+	q := len(slice)
+	set.dict.ForEach(func(key string, val any) bool {
+		if i < q {
+			slice[i] = key
+		} else {
+			slice = append(slice, key)
+		}
+		i++
+		return true
+	})
+	return slice
+}
 
-func (set *InstanceSet) ForEach(consumer Consumer) {}
+func (set *InstanceSet) ForEach(consumer Consumer) {
+	if set == nil || set.dict == nil {
+		return
+	}
+	set.dict.ForEach(func(key string, val interface{}) bool {
+		return consumer(key)
+	})
+}
 
-func (set *InstanceSet) ShallowCopy() *InstanceSet {}
+func (set *InstanceSet) ShallowCopy() *InstanceSet {
+	result := Make()
+	set.ForEach(func(member string) bool {
+		result.Add(member)
+		return true
+	})
+	return result
+}
 
-func Intersect(sets ...*InstanceSet) *InstanceSet {}
+func (set *InstanceSet) RandomMembers(limit int) []string {
+	if set == nil || set.dict == nil {
+		return nil
+	}
+	return set.dict.RandomKeys(limit)
+}
 
-func Union(sets ...*InstanceSet) *InstanceSet {}
+func (set *InstanceSet) RandomDistinctMembers(limit int) []string {
+	return set.dict.RandomDistinctKeys(limit)
+}
 
-func Diff(sets ...*InstanceSet) *InstanceSet {}
+func Intersect(sets ...*InstanceSet) *InstanceSet {
+	res := Make()
+	m := make(map[string]int)
+	for _, set := range sets {
+		set.ForEach(func(member string) bool {
+			m[member]++
+			return true
+		})
+	}
+	for k, i := range m {
+		if i == len(sets) {
+			res.Add(k)
+		}
+	}
+	return res
+}
 
-func (set *InstanceSet) RandomMembers(limit int) []string {}
+func Union(sets ...*InstanceSet) *InstanceSet {
+	res := Make()
+	for _, set := range sets {
+		set.ForEach(func(member string) bool {
+			res.Add(member)
+			return true
+		})
+	}
+	return res
+}
 
-func (set *InstanceSet) RandomDistinctMembers(limit int) []string {}
+func Diff(sets ...*InstanceSet) *InstanceSet {
+	res := sets[0].ShallowCopy()
+	for i := 1; i < len(sets); i++ {
+		sets[i].ForEach(func(member string) bool {
+			res.Remove(member)
+			return true
+		})
+		if res.Len() == 0 {
+			break
+		}
+	}
+	return res
+}
