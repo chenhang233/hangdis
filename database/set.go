@@ -163,7 +163,72 @@ func execSMembers(db *DB, args [][]byte) redis.Reply {
 	return protocol.MakeMultiBulkReply(res)
 }
 
+func setReply(set *Set.Set) redis.Reply {
+	res := make([][]byte, (*set).Len())
+	i := 0
+	(*set).ForEach(func(member string) bool {
+		res[i] = []byte(member)
+		i++
+		return true
+	})
+	return protocol.MakeMultiBulkReply(res)
+}
+
 func execSInter(db *DB, args [][]byte) redis.Reply {
+	n := len(args)
+	sets := make([]*Set.Set, n)
+	for i := 0; i < n; i++ {
+		key := string(args[i])
+		set, err := db.getAsSet(key)
+		if err != nil {
+			return err
+		}
+		if set == nil || set.Len() == 0 {
+			return protocol.MakeEmptyMultiBulkReply()
+		}
+		sets[i] = &set
+	}
+	intersect := Set.Intersect(sets...)
+	return setReply(&intersect)
+}
+
+func execSInterStore(db *DB, args [][]byte) redis.Reply {
+	dest := string(args[0])
+	n := len(args) - 1
+	sets := make([]*Set.Set, n)
+	for i := 1; i <= n; i++ {
+		key := string(args[i])
+		set, err := db.getAsSet(key)
+		if err != nil {
+			return err
+		}
+		if set == nil || set.Len() == 0 {
+			return protocol.MakeIntReply(0)
+		}
+		sets[i-1] = &set
+	}
+	intersect := Set.Intersect(sets...)
+	db.PutEntity(dest, &database.DataEntity{Data: intersect})
+	db.addAof(utils.ToCmdLine3("sinterstore", args...))
+	return protocol.MakeIntReply(int64(intersect.Len()))
+}
+
+func execSUnion(db *DB, args [][]byte) redis.Reply {
+	n := len(args)
+	sets := make([]*Set.Set, n)
+	for i := 0; i < n; i++ {
+		key := string(args[i])
+		set, err := db.getAsSet(key)
+		if err != nil {
+			return err
+		}
+		if set == nil || set.Len() == 0 {
+			return protocol.MakeEmptyMultiBulkReply()
+		}
+		sets[i] = &set
+	}
+	union := Set.Union(sets...)
+	return setReply(&union)
 
 }
 
@@ -174,9 +239,9 @@ func init() {
 	RegisterCommand("SPOP", execSPop, writeFirstKey, undoSetChange, -2, flagWrite)
 	RegisterCommand("SCARD", execSCard, readFirstKey, nil, 2, flagReadOnly)
 	RegisterCommand("SMEMBERS", execSMembers, readFirstKey, nil, 2, flagReadOnly)
-	RegisterCommand("SInter", execSInter, prepareSetCalculate, nil, -2, flagReadOnly)
-	//registerCommand("SInterStore", execSInterStore, prepareSetCalculateStore, rollbackFirstKey, -3, flagWrite)
-	//registerCommand("SUnion", execSUnion, prepareSetCalculate, nil, -2, flagReadOnly)
+	RegisterCommand("SINTER", execSInter, prepareSetCalculate, nil, -2, flagReadOnly)
+	RegisterCommand("SINTERSTORE", execSInterStore, prepareSetCalculateStore, rollbackFirstKey, -3, flagWrite)
+	RegisterCommand("SUNION", execSUnion, prepareSetCalculate, nil, -2, flagReadOnly)
 	//registerCommand("SUnionStore", execSUnionStore, prepareSetCalculateStore, rollbackFirstKey, -3, flagWrite)
 	//registerCommand("SDiff", execSDiff, prepareSetCalculate, nil, -2, flagReadOnly)
 	//registerCommand("SDiffStore", execSDiffStore, prepareSetCalculateStore, rollbackFirstKey, -3, flagWrite)

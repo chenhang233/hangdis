@@ -5,6 +5,7 @@ import (
 	"hangdis/redis/client"
 	"hangdis/redis/protocol"
 	"testing"
+	"time"
 )
 
 func TestClient(t *testing.T) {
@@ -69,4 +70,30 @@ func TestParseInputString(t *testing.T) {
 	fmt.Println(client.ParseInputString("set a \"hello world\""))
 	fmt.Println(client.ParseInputString("set b hello world"))
 	fmt.Println(client.ParseInputString("set \"hello world\" ssss"))
+}
+
+func TestRuntime(t *testing.T) {
+
+	Fns()
+	for {
+		time.Sleep(100)
+	}
+}
+
+func Fns() {
+	f1 := func() {
+		for {
+			fmt.Println("f1")
+		}
+	}
+	f2 := func() {
+		for {
+			fmt.Println("f2")
+		}
+	}
+
+	go f1()
+	go f2()
+	time.Sleep(3 * time.Second)
+	fmt.Println("over")
 }

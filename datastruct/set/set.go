@@ -1,6 +1,8 @@
 package set
 
-import "hangdis/datastruct/dict"
+import (
+	"hangdis/datastruct/dict"
+)
 
 type InstanceSet struct {
 	dict dict.Dict
@@ -84,11 +86,12 @@ func (set *InstanceSet) RandomDistinctMembers(limit int) []string {
 	return set.dict.RandomDistinctKeys(limit)
 }
 
-func Intersect(sets ...*InstanceSet) *InstanceSet {
-	res := Make()
+func Intersect(sets ...*Set) Set {
+	var res Set
+	res = Make()
 	m := make(map[string]int)
 	for _, set := range sets {
-		set.ForEach(func(member string) bool {
+		(*set).ForEach(func(member string) bool {
 			m[member]++
 			return true
 		})
@@ -101,10 +104,11 @@ func Intersect(sets ...*InstanceSet) *InstanceSet {
 	return res
 }
 
-func Union(sets ...*InstanceSet) *InstanceSet {
-	res := Make()
+func Union(sets ...*Set) Set {
+	var res Set
+	res = Make()
 	for _, set := range sets {
-		set.ForEach(func(member string) bool {
+		(*set).ForEach(func(member string) bool {
 			res.Add(member)
 			return true
 		})

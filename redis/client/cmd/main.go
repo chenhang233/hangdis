@@ -75,29 +75,33 @@ func main() {
 	fmt.Println(utils.White("Please enter the command"))
 	reader := bufio.NewReader(os.Stdin)
 	for {
-		if c.Status == client.STOP {
-			fmt.Println(utils.Yellow("Exit signal "))
-			break
+		select {
+		case status := <-c.Status:
+			if status == client.STOP {
+				fmt.Println(utils.Yellow("Exit signal "))
+				break
+			}
+		default:
+			bs, err := reader.ReadBytes('\n')
+			if err != nil {
+				fmt.Println(utils.Red(err.Error()))
+				continue
+			}
+			cmd := string(bs[:len(bs)-2])
+			cmd = strings.Trim(cmd, " ")
+			f := matchCMD(c, cmd)
+			if f {
+				continue
+			}
+			list := client.ParseInputString(cmd)
+			n := len(list)
+			bys := make([][]byte, n)
+			for i := 0; i < n; i++ {
+				str := list[i]
+				bys[i] = make([]byte, len(str))
+				bys[i] = []byte(str)
+			}
+			client.ParseReplyType(c.Send(bys))
 		}
-		bs, err := reader.ReadBytes('\n')
-		if err != nil {
-			fmt.Println(utils.Red(err.Error()))
-			continue
-		}
-		cmd := string(bs[:len(bs)-2])
-		cmd = strings.Trim(cmd, " ")
-		f := matchCMD(c, cmd)
-		if f {
-			continue
-		}
-		list := client.ParseInputString(cmd)
-		n := len(list)
-		bys := make([][]byte, n)
-		for i := 0; i < n; i++ {
-			str := list[i]
-			bys[i] = make([]byte, len(str))
-			bys[i] = []byte(str)
-		}
-		client.ParseReplyType(c.Send(bys))
 	}
 }

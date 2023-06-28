@@ -6,6 +6,7 @@ import (
 	"hangdis/redis/parser"
 	"hangdis/redis/protocol"
 	"hangdis/utils"
+	"io"
 	"net"
 	"sync"
 )
@@ -15,7 +16,7 @@ type Client struct {
 	addr        string
 	pendingReqs chan *request
 	waitingReqs chan *request
-	Status      int
+	StopStatus  chan int
 }
 
 type request struct {
@@ -37,7 +38,7 @@ func MakeClient(addr string) (*Client, error) {
 		return nil, err
 	}
 	return &Client{
-		Status:      STOP,
+		StopStatus:  make(chan int, STOP),
 		addr:        addr,
 		conn:        dial,
 		pendingReqs: make(chan *request, chanSize),
@@ -48,19 +49,21 @@ func MakeClient(addr string) (*Client, error) {
 func (c *Client) Start() {
 	go c.handleRead()
 	go c.handleWrite()
-	c.Status = RUN
+	go func() {
+		for status := range c.StopStatus {
+			fmt.Println("Exit signal: ", status)
+			return
+		}
+	}()
 }
 
 func (c *Client) Close() error {
-	c.Status = STOP
 	close(c.pendingReqs)
 	close(c.waitingReqs)
+	close(c.StopStatus)
 	return c.conn.Close()
 }
 func (c *Client) Send(args [][]byte) redis.Reply {
-	if c.Status == STOP {
-		return protocol.MakeErrReply("client closed")
-	}
 	req := &request{args: args, wait: &sync.WaitGroup{}}
 	req.wait.Add(1)
 	c.pendingReqs <- req
@@ -69,9 +72,6 @@ func (c *Client) Send(args [][]byte) redis.Reply {
 }
 
 func (c *Client) handleWrite() {
-	if c.Status == STOP {
-		return
-	}
 	for pending := range c.pendingReqs {
 		c.doReq(pending)
 	}
@@ -96,11 +96,14 @@ func (c *Client) handleRead() {
 	ch := parser.ParseStream(c.conn)
 	for payload := range ch {
 		if payload.Err != nil {
-			if c.Status == STOP {
+			if payload.Err == io.EOF {
+				fmt.Println(utils.Purple("server closed"))
+				c.StopStatus <- STOP
 				return
 			}
 			fmt.Println("client.go handleRead payload.Err:", utils.Red(payload.Err.Error()))
 			//c.Close()
+			c.StopStatus <- STOP
 			return
 		}
 		c.handlePayload(payload)
