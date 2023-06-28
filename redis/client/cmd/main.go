@@ -74,13 +74,12 @@ func main() {
 	c.Start()
 	fmt.Println(utils.White("Please enter the command"))
 	reader := bufio.NewReader(os.Stdin)
+A:
 	for {
 		select {
-		case status := <-c.Status:
-			if status == client.STOP {
-				fmt.Println(utils.Yellow("Exit signal "))
-				break
-			}
+		case <-c.StopStatus:
+			fmt.Println(utils.Red("Exit signal "))
+			break A
 		default:
 			bs, err := reader.ReadBytes('\n')
 			if err != nil {

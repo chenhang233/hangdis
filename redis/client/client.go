@@ -49,12 +49,6 @@ func MakeClient(addr string) (*Client, error) {
 func (c *Client) Start() {
 	go c.handleRead()
 	go c.handleWrite()
-	go func() {
-		for status := range c.StopStatus {
-			fmt.Println("Exit signal: ", status)
-			return
-		}
-	}()
 }
 
 func (c *Client) Close() error {
