@@ -73,3 +73,30 @@ func rollbackHashFields(db *DB, key string, fields ...string) []CmdLine {
 	}
 	return undoCmdLines
 }
+
+func rollbackSetMembers(db *DB, key string, members ...string) []CmdLine {
+	var undoCmdLines [][][]byte
+	set, errReply := db.getAsSet(key)
+	if errReply != nil {
+		return nil
+	}
+	if set == nil {
+		undoCmdLines = append(undoCmdLines,
+			utils.ToCmdLine("DEL", key),
+		)
+		return undoCmdLines
+	}
+	for _, member := range members {
+		ok := set.Has(member)
+		if !ok {
+			undoCmdLines = append(undoCmdLines,
+				utils.ToCmdLine("SREM", key, member),
+			)
+		} else {
+			undoCmdLines = append(undoCmdLines,
+				utils.ToCmdLine("SADD", key, member),
+			)
+		}
+	}
+	return undoCmdLines
+}
