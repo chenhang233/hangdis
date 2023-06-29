@@ -32,7 +32,6 @@ func (db *DB) getOrInitDict(key string) (Dict.Dict, bool, redis.ErrorReply) {
 		dict = Dict.MakeInstanceDict()
 		db.PutEntity(key, &database.DataEntity{Data: dict})
 		isNew = true
-		return dict, isNew, nil
 	}
 	return dict, isNew, nil
 }
