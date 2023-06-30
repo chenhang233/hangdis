@@ -5,14 +5,16 @@ type SimpleSortedSet struct {
 }
 
 func SimpleMake() *SimpleSortedSet {
-	return &SimpleSortedSet{}
+	return &SimpleSortedSet{
+		dict: make(map[string]*Element),
+	}
 }
 
 func (s *SimpleSortedSet) Add(key string, score float64) bool {
 	_, ok := s.dict[key]
 	s.dict[key] = &Element{
-		key:   key,
-		Score: score,
+		Member: key,
+		Score:  score,
 	}
 	if ok {
 		return false

@@ -43,3 +43,13 @@ func TestStrToInt(t *testing.T) {
 	}
 	fmt.Println(delta, " d")
 }
+
+func TestRange(t *testing.T) {
+	arr := []int{1, 2, 3}
+	for _, v := range arr {
+		if v == 2 {
+			continue
+		}
+		fmt.Println(v, "v")
+	}
+}

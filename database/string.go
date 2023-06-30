@@ -13,15 +13,6 @@ import (
 	"time"
 )
 
-const (
-	upsertPolicy  = iota // default
-	insertPolicy         // set nx
-	updatePolicy         // set xx
-	greaterExpiry        // set GL
-	lessExpiry           // set LT
-)
-const unlimitedTTL int64 = 0
-
 func execSet(db *DB, args [][]byte) redis.Reply {
 	policy := upsertPolicy
 	ttl := unlimitedTTL

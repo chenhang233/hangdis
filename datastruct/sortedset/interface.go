@@ -1,8 +1,8 @@
 package sortedset
 
 type Element struct {
-	key   string
-	Score float64
+	Member string
+	Score  float64
 }
 
 type ScoreBorder struct {
@@ -12,9 +12,9 @@ type ScoreBorder struct {
 }
 
 type SortedSet interface {
-	Add(key string, score float64) bool
-	Remove(key string) bool
-	Get(key string) (element *Element, ok bool)
+	Add(member string, score float64) bool
+	Remove(member string) bool
+	Get(member string) (element *Element, ok bool)
 	Len() int64
 	GetRank(member string, desc bool) (rank int64)
 	ForEach(start int64, stop int64, desc bool, consumer func(element *Element) bool)

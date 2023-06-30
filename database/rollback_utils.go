@@ -1,6 +1,9 @@
 package database
 
-import "hangdis/utils"
+import (
+	"hangdis/utils"
+	"strconv"
+)
 
 func rollbackFirstKey(db *DB, args [][]byte) []CmdLine {
 	key := string(args[0])
@@ -117,4 +120,32 @@ func prepareSetCalculateStore(args [][]byte) ([]string, []string) {
 		keys[i] = string(arg)
 	}
 	return []string{dest}, keys
+}
+
+func rollbackZSetFields(db *DB, key string, fields ...string) []CmdLine {
+	var undoCmdLines [][][]byte
+	zset, errReply := db.getAsSortedSet(key)
+	if errReply != nil {
+		return nil
+	}
+	if zset == nil {
+		undoCmdLines = append(undoCmdLines,
+			utils.ToCmdLine("DEL", key),
+		)
+		return undoCmdLines
+	}
+	for _, field := range fields {
+		elem, ok := zset.Get(field)
+		if !ok {
+			undoCmdLines = append(undoCmdLines,
+				utils.ToCmdLine("ZREM", key, field),
+			)
+		} else {
+			score := strconv.FormatFloat(elem.Score, 'f', -1, 64)
+			undoCmdLines = append(undoCmdLines,
+				utils.ToCmdLine("ZADD", key, score, field),
+			)
+		}
+	}
+	return undoCmdLines
 }
