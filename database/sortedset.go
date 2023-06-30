@@ -165,11 +165,31 @@ func execZRank(db *DB, args [][]byte) redis.Reply {
 	return protocol.MakeIntReply(rank)
 }
 
+func execZCount(db *DB, args [][]byte) redis.Reply {
+	key := string(args[0])
+	min, err := SortedSet.ParseScoreBorder(string(args[1]))
+	if err != nil {
+		return protocol.MakeErrReply(err.Error())
+	}
+	max, err := SortedSet.ParseScoreBorder(string(args[2]))
+	if err != nil {
+		return protocol.MakeErrReply(err.Error())
+	}
+	sortedSet, errReply := db.getAsSortedSet(key)
+	if errReply != nil {
+		return errReply
+	}
+	if sortedSet == nil {
+		return protocol.MakeIntReply(0)
+	}
+	return protocol.MakeIntReply(sortedSet.Count(min, max))
+}
+
 func init() {
 	RegisterCommand("ZADD", execZAdd, writeFirstKey, undoZAdd, -4, flagWrite)
 	RegisterCommand("ZSCORE", execZScore, readFirstKey, nil, 3, flagReadOnly)
 	RegisterCommand("ZINCRBY", execZIncrBy, writeFirstKey, undoZIncr, 4, flagWrite)
 	RegisterCommand("ZRANK", execZRank, readFirstKey, nil, 3, flagReadOnly)
-	//registerCommand("ZCount", execZCount, readFirstKey, nil, 4, flagReadOnly)
+	//RegisterCommand("ZCOUNT", execZCount, readFirstKey, nil, 4, flagReadOnly)
 	//RegisterCommand("ZCard", execZCard, readFirstKey, nil, 2, flagReadOnly)
 }

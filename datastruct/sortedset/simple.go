@@ -102,13 +102,52 @@ func (s *SimpleSortedSet) GetRank(member string, desc bool) (rank int64) {
 	return int64(fe)
 }
 func (s *SimpleSortedSet) ForEach(start int64, stop int64, desc bool, consumer func(element *Element) bool) {
-	return
+	n := s.Len()
+	if start >= n || start < 0 || stop >= n || stop < start {
+		panic("illegal  start or stop")
+	}
+	slice := s.ToSlice()
+	s.QuickSort(&slice, 0, int(s.Len())-1)
+	if desc {
+		for i := stop - 1; i >= start; i-- {
+			if !consumer(slice[i]) {
+				break
+			}
+		}
+	} else {
+		for i := start; i < stop; i++ {
+			if !consumer(slice[i]) {
+				break
+			}
+		}
+	}
 }
 func (s *SimpleSortedSet) Range(start int64, stop int64, desc bool) []*Element {
-	return nil
+	sliceSize := int(stop - start)
+	slice := make([]*Element, sliceSize)
+	i := 0
+	s.ForEach(start, stop, desc, func(element *Element) bool {
+		slice[i] = element
+		i++
+		return true
+	})
+	return slice
 }
 func (s *SimpleSortedSet) Count(min *ScoreBorder, max *ScoreBorder) int64 {
-	return 0
+	var i int64 = 0
+	s.ForEach(0, s.Len(), false, func(element *Element) bool {
+		gtMin := min.less(element.Score)
+		if !gtMin {
+			return true
+		}
+		ltMax := max.greater(element.Score)
+		if !ltMax {
+			return false
+		}
+		i++
+		return true
+	})
+	return i
 }
 func (s *SimpleSortedSet) RangeByScore(min *ScoreBorder, max *ScoreBorder, offset int64, limit int64, desc bool) []*Element {
 	return nil

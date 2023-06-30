@@ -1,5 +1,10 @@
 package sortedset
 
+import (
+	"errors"
+	"strconv"
+)
+
 type Element struct {
 	Member string
 	Score  float64
@@ -9,6 +14,24 @@ type ScoreBorder struct {
 	Inf     int8
 	Value   float64
 	Exclude bool
+}
+
+func ParseScoreBorder(s string) (*ScoreBorder, error) {
+	value, err := strconv.ParseFloat(s, 64)
+	if err != nil {
+		return nil, errors.New("ERR min or max is not a float")
+	}
+	return &ScoreBorder{
+		Inf:     0,
+		Value:   value,
+		Exclude: false,
+	}, nil
+}
+func (border *ScoreBorder) greater(value float64) bool {
+	return border.Value >= value
+}
+func (border *ScoreBorder) less(value float64) bool {
+	return border.Value <= value
 }
 
 type SortedSet interface {
