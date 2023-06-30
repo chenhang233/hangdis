@@ -45,6 +45,12 @@ func undoZAdd(db *DB, args [][]byte) []CmdLine {
 	return rollbackZSetFields(db, key, fields...)
 }
 
+func undoZIncr(db *DB, args [][]byte) []CmdLine {
+	key := string(args[0])
+	field := string(args[2])
+	return rollbackZSetFields(db, key, field)
+}
+
 func execZAdd(db *DB, args [][]byte) redis.Reply {
 	key := string(args[0])
 	tp := string(args[1])
@@ -116,8 +122,54 @@ func execZScore(db *DB, args [][]byte) redis.Reply {
 	return protocol.MakeBulkReply([]byte(value))
 }
 
+func execZIncrBy(db *DB, args [][]byte) redis.Reply {
+	key := string(args[0])
+	raw := string(args[1])
+	member := string(args[2])
+	increment, err := strconv.ParseFloat(raw, 64)
+	if err != nil {
+		return protocol.MakeErrReply("ERR value is not a valid float")
+	}
+	sortedSet, _, err2 := db.getOrInitSortedSet(key)
+	if err2 != nil {
+		return err2
+	}
+	element, exists := sortedSet.Get(member)
+	if !exists {
+		sortedSet.Add(member, increment)
+		db.addAof(utils.ToCmdLine3("zincrby", args...))
+		return protocol.MakeBulkReply(args[1])
+	}
+	score := element.Score + increment
+	sortedSet.Add(member, score)
+	bytes := []byte(strconv.FormatFloat(score, 'f', -1, 64))
+	db.addAof(utils.ToCmdLine3("zincrby", args...))
+	return protocol.MakeBulkReply(bytes)
+}
+
+func execZRank(db *DB, args [][]byte) redis.Reply {
+	key := string(args[0])
+	member := string(args[1])
+	sortedSet, errReply := db.getAsSortedSet(key)
+	if errReply != nil {
+		return errReply
+	}
+	if sortedSet == nil {
+		return &protocol.EmptyMultiBulkReply{}
+	}
+
+	rank := sortedSet.GetRank(member, false)
+	if rank < 0 {
+		return &protocol.EmptyMultiBulkReply{}
+	}
+	return protocol.MakeIntReply(rank)
+}
+
 func init() {
 	RegisterCommand("ZADD", execZAdd, writeFirstKey, undoZAdd, -4, flagWrite)
 	RegisterCommand("ZSCORE", execZScore, readFirstKey, nil, 3, flagReadOnly)
+	RegisterCommand("ZINCRBY", execZIncrBy, writeFirstKey, undoZIncr, 4, flagWrite)
+	RegisterCommand("ZRANK", execZRank, readFirstKey, nil, 3, flagReadOnly)
+	//registerCommand("ZCount", execZCount, readFirstKey, nil, 4, flagReadOnly)
 	//RegisterCommand("ZCard", execZCard, readFirstKey, nil, 2, flagReadOnly)
 }

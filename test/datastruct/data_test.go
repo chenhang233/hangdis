@@ -2,6 +2,7 @@ package datastruct
 
 import (
 	"fmt"
+	SortedSet "hangdis/datastruct/sortedset"
 	"testing"
 )
 
@@ -31,4 +32,28 @@ func TestBit(t *testing.T) {
 	fmt.Println(c, "c")
 	b &^= c
 	fmt.Println(b, 1<<3)
+}
+
+func TestQuickSort(t *testing.T) {
+	simpleMake := SortedSet.SimpleMake()
+	simpleMake.Add("A", 1)
+	simpleMake.Add("B", 2)
+	simpleMake.Add("C", 3)
+	simpleMake.Add("D", 4)
+	slice := simpleMake.ToSlice()
+	fmt.Println(slice, "slice before")
+	simpleMake.QuickSort(&slice, 0, int(simpleMake.Len()-1))
+	fmt.Println(slice[0].Score, slice[1].Score, "slice after")
+}
+
+func TestGetRnak(t *testing.T) {
+	simpleMake := SortedSet.SimpleMake()
+	simpleMake.Add("A", 1)
+	simpleMake.Add("B", 2)
+	simpleMake.Add("C", 3)
+	simpleMake.Add("D", 4)
+	rank := simpleMake.GetRank("B", false)
+	fmt.Println(rank, "rank")
+	rank = simpleMake.GetRank("B", true)
+	fmt.Println(rank, "rank")
 }

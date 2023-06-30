@@ -44,8 +44,62 @@ func (s *SimpleSortedSet) Remove(key string) bool {
 	return true
 }
 
+func (s *SimpleSortedSet) QuickSort(elements *[]*Element, l int, r int) {
+	if l < r {
+		i, j, x := l, r, (*elements)[l]
+		for i < j {
+			for i < j && (*elements)[j].Score >= x.Score {
+				j--
+			}
+			if i < j {
+				(*elements)[i] = (*elements)[j]
+				i++
+			}
+			for i < j && (*elements)[i].Score < x.Score {
+				i++
+			}
+			if i < j {
+				(*elements)[j] = (*elements)[i]
+				j--
+			}
+		}
+		(*elements)[i] = x
+		s.QuickSort(elements, l, i-1)
+		s.QuickSort(elements, i+1, r)
+	}
+}
+
+func (s *SimpleSortedSet) ToSlice() []*Element {
+	arr := make([]*Element, s.Len())
+	i := 0
+	for _, element := range s.dict {
+		arr[i] = element
+		i++
+	}
+	return arr
+}
+
+func (s *SimpleSortedSet) findElement(element *Element, arr []*Element) int {
+	for i, e := range arr {
+		if e.Member == element.Member {
+			return i
+		}
+	}
+	return -1
+}
+
 func (s *SimpleSortedSet) GetRank(member string, desc bool) (rank int64) {
-	return 0
+	element, ok := s.dict[member]
+	if !ok {
+		return -1
+	}
+	slice := s.ToSlice()
+	s.QuickSort(&slice, 0, int(s.Len())-1)
+	fe := s.findElement(element, slice)
+	if desc {
+		return s.Len() - 1 - int64(fe)
+	}
+	return int64(fe)
 }
 func (s *SimpleSortedSet) ForEach(start int64, stop int64, desc bool, consumer func(element *Element) bool) {
 	return
