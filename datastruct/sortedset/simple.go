@@ -4,7 +4,7 @@ type SimpleSortedSet struct {
 	dict map[string]*Element
 }
 
-func Make() *SimpleSortedSet {
+func SimpleMake() *SimpleSortedSet {
 	return &SimpleSortedSet{}
 }
 
@@ -40,4 +40,29 @@ func (s *SimpleSortedSet) Remove(key string) bool {
 	}
 	delete(s.dict, key)
 	return true
+}
+
+func (s *SimpleSortedSet) GetRank(member string, desc bool) (rank int64) {
+	return 0
+}
+func (s *SimpleSortedSet) ForEach(start int64, stop int64, desc bool, consumer func(element *Element) bool) {
+	return
+}
+func (s *SimpleSortedSet) Range(start int64, stop int64, desc bool) []*Element {
+	return nil
+}
+func (s *SimpleSortedSet) Count(min *ScoreBorder, max *ScoreBorder) int64 {
+	return 0
+}
+func (s *SimpleSortedSet) RangeByScore(min *ScoreBorder, max *ScoreBorder, offset int64, limit int64, desc bool) []*Element {
+	return nil
+}
+func (s *SimpleSortedSet) RemoveByScore(min *ScoreBorder, max *ScoreBorder) int64 {
+	return 0
+}
+func (s *SimpleSortedSet) PopMin(count int) []*Element {
+	return nil
+}
+func (s *SimpleSortedSet) RemoveByRank(start int64, stop int64) int64 {
+	return 0
 }

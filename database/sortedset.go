@@ -26,7 +26,7 @@ func (db *DB) getOrInitSortedSet(key string) (*SortedSet.SortedSet, bool, redis.
 	}
 	isNew := false
 	if set == nil {
-		set = SortedSet.Make()
+		*set = SortedSet.SimpleMake()
 		db.PutEntity(key, &database.DataEntity{Data: set})
 		isNew = true
 	}
