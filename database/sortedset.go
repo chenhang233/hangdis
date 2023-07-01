@@ -185,11 +185,24 @@ func execZCount(db *DB, args [][]byte) redis.Reply {
 	return protocol.MakeIntReply(sortedSet.Count(min, max))
 }
 
+func execZRevRank(db *DB, args [][]byte) {
+
+}
+
 func init() {
 	RegisterCommand("ZADD", execZAdd, writeFirstKey, undoZAdd, -4, flagWrite)
 	RegisterCommand("ZSCORE", execZScore, readFirstKey, nil, 3, flagReadOnly)
 	RegisterCommand("ZINCRBY", execZIncrBy, writeFirstKey, undoZIncr, 4, flagWrite)
 	RegisterCommand("ZRANK", execZRank, readFirstKey, nil, 3, flagReadOnly)
 	RegisterCommand("ZCOUNT", execZCount, readFirstKey, nil, 4, flagReadOnly)
+	RegisterCommand("ZREVRANK", execZRevRank, readFirstKey, nil, 3, flagReadOnly)
 	//RegisterCommand("ZCard", execZCard, readFirstKey, nil, 2, flagReadOnly)
+	//registerCommand("ZRange", execZRange, readFirstKey, nil, -4, flagReadOnly).
+	//registerCommand("ZRangeByScore", execZRangeByScore, readFirstKey, nil, -4, flagReadOnly).
+	//registerCommand("ZRevRange", execZRevRange, readFirstKey, nil, -4, flagReadOnly).
+	//registerCommand("ZRevRangeByScore", execZRevRangeByScore, readFirstKey, nil, -4, flagReadOnly).
+	//registerCommand("ZPopMin", execZPopMin, writeFirstKey, rollbackFirstKey, -2, flagWrite).
+	//registerCommand("ZRem", execZRem, writeFirstKey, undoZRem, -3, flagWrite).
+	//registerCommand("ZRemRangeByScore", execZRemRangeByScore, writeFirstKey, rollbackFirstKey, 4, flagWrite).
+	//registerCommand("ZRemRangeByRank", execZRemRangeByRank, writeFirstKey, rollbackFirstKey, 4, flagWrite).
 }
