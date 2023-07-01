@@ -185,8 +185,38 @@ func execZCount(db *DB, args [][]byte) redis.Reply {
 	return protocol.MakeIntReply(sortedSet.Count(min, max))
 }
 
-func execZRevRank(db *DB, args [][]byte) {
+func execZRevRank(db *DB, args [][]byte) redis.Reply {
+	key := string(args[0])
+	member := string(args[1])
+	set, err := db.getAsSortedSet(key)
+	if err != nil {
+		return err
+	}
+	if set == nil {
+		return protocol.MakeEmptyMultiBulkReply()
+	}
+	rank := set.GetRank(member, true)
+	if rank < 0 {
+		return protocol.MakeEmptyMultiBulkReply()
+	}
+	return protocol.MakeIntReply(rank)
+}
 
+func execZCard(db *DB, args [][]byte) redis.Reply {
+	key := string(args[0])
+	set, err := db.getAsSortedSet(key)
+	if err != nil {
+		return err
+	}
+	if set == nil {
+		return protocol.MakeEmptyMultiBulkReply()
+	}
+	return protocol.MakeIntReply(set.Len())
+
+}
+
+func execZRange(db *DB, args [][]byte) redis.Reply {
+	return nil
 }
 
 func init() {
@@ -196,8 +226,8 @@ func init() {
 	RegisterCommand("ZRANK", execZRank, readFirstKey, nil, 3, flagReadOnly)
 	RegisterCommand("ZCOUNT", execZCount, readFirstKey, nil, 4, flagReadOnly)
 	RegisterCommand("ZREVRANK", execZRevRank, readFirstKey, nil, 3, flagReadOnly)
-	//RegisterCommand("ZCard", execZCard, readFirstKey, nil, 2, flagReadOnly)
-	//registerCommand("ZRange", execZRange, readFirstKey, nil, -4, flagReadOnly).
+	RegisterCommand("ZCARD", execZCard, readFirstKey, nil, 2, flagReadOnly)
+	//RegisterCommand("ZRange", execZRange, readFirstKey, nil, -4, flagReadOnly)
 	//registerCommand("ZRangeByScore", execZRangeByScore, readFirstKey, nil, -4, flagReadOnly).
 	//registerCommand("ZRevRange", execZRevRange, readFirstKey, nil, -4, flagReadOnly).
 	//registerCommand("ZRevRangeByScore", execZRevRangeByScore, readFirstKey, nil, -4, flagReadOnly).
