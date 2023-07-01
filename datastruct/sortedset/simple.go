@@ -1,5 +1,7 @@
 package sortedset
 
+import "fmt"
+
 type SimpleSortedSet struct {
 	dict map[string]*Element
 }
@@ -101,6 +103,7 @@ func (s *SimpleSortedSet) GetRank(member string, desc bool) (rank int64) {
 	}
 	return int64(fe)
 }
+
 func (s *SimpleSortedSet) ForEach(start int64, stop int64, desc bool, consumer func(element *Element) bool) {
 	n := s.Len()
 	if start >= n || start < 0 || stop >= n || stop < start {
@@ -109,19 +112,20 @@ func (s *SimpleSortedSet) ForEach(start int64, stop int64, desc bool, consumer f
 	slice := s.ToSlice()
 	s.QuickSort(&slice, 0, int(s.Len())-1)
 	if desc {
-		for i := stop - 1; i >= start; i-- {
+		for i := stop; i >= start; i-- {
 			if !consumer(slice[i]) {
 				break
 			}
 		}
 	} else {
-		for i := start; i < stop; i++ {
+		for i := start; i <= stop; i++ {
 			if !consumer(slice[i]) {
 				break
 			}
 		}
 	}
 }
+
 func (s *SimpleSortedSet) Range(start int64, stop int64, desc bool) []*Element {
 	sliceSize := int(stop - start)
 	slice := make([]*Element, sliceSize)
@@ -133,9 +137,11 @@ func (s *SimpleSortedSet) Range(start int64, stop int64, desc bool) []*Element {
 	})
 	return slice
 }
+
 func (s *SimpleSortedSet) Count(min *ScoreBorder, max *ScoreBorder) int64 {
 	var i int64 = 0
-	s.ForEach(0, s.Len(), false, func(element *Element) bool {
+	s.ForEach(0, s.Len()-1, false, func(element *Element) bool {
+		fmt.Println(element.Score, min.Value, max.Value, "------144")
 		gtMin := min.less(element.Score)
 		if !gtMin {
 			return true
@@ -149,6 +155,7 @@ func (s *SimpleSortedSet) Count(min *ScoreBorder, max *ScoreBorder) int64 {
 	})
 	return i
 }
+
 func (s *SimpleSortedSet) RangeByScore(min *ScoreBorder, max *ScoreBorder, offset int64, limit int64, desc bool) []*Element {
 	if offset < 0 || limit == 0 {
 		return make([]*Element, 0)
@@ -168,6 +175,7 @@ func (s *SimpleSortedSet) RangeByScore(min *ScoreBorder, max *ScoreBorder, offse
 	}
 	return slice[offset:]
 }
+
 func (s *SimpleSortedSet) RemoveByScore(min *ScoreBorder, max *ScoreBorder) int64 {
 	slice := s.RangeByScore(min, max, 0, 0, false)
 	res := 0
@@ -178,6 +186,7 @@ func (s *SimpleSortedSet) RemoveByScore(min *ScoreBorder, max *ScoreBorder) int6
 	}
 	return int64(res)
 }
+
 func (s *SimpleSortedSet) PopMin(count int) []*Element {
 	var removed []*Element
 	s.ForEach(0, s.Len()-1, false, func(element *Element) bool {
@@ -186,12 +195,14 @@ func (s *SimpleSortedSet) PopMin(count int) []*Element {
 		}
 		count--
 		removed = append(removed, element)
+		return true
 	})
 	for _, member := range removed {
 		s.Remove(member.Member)
 	}
 	return removed
 }
+
 func (s *SimpleSortedSet) RemoveByRank(start int64, stop int64) int64 {
 	elements := s.Range(start, stop, true)
 	i := 0
