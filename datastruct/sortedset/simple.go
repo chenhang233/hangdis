@@ -150,14 +150,55 @@ func (s *SimpleSortedSet) Count(min *ScoreBorder, max *ScoreBorder) int64 {
 	return i
 }
 func (s *SimpleSortedSet) RangeByScore(min *ScoreBorder, max *ScoreBorder, offset int64, limit int64, desc bool) []*Element {
-	return nil
+	if offset < 0 || limit == 0 {
+		return make([]*Element, 0)
+	}
+	var slice []*Element
+	s.ForEach(0, s.Len()-1, desc, func(element *Element) bool {
+		if element.Score > max.Value {
+			return false
+		}
+		if element.Score >= min.Value {
+			slice = append(slice, element)
+		}
+		return true
+	})
+	if limit > 0 {
+		return slice[offset:limit]
+	}
+	return slice[offset:]
 }
 func (s *SimpleSortedSet) RemoveByScore(min *ScoreBorder, max *ScoreBorder) int64 {
-	return 0
+	slice := s.RangeByScore(min, max, 0, 0, false)
+	res := 0
+	for _, element := range slice {
+		if s.Remove(element.Member) {
+			res++
+		}
+	}
+	return int64(res)
 }
 func (s *SimpleSortedSet) PopMin(count int) []*Element {
-	return nil
+	var removed []*Element
+	s.ForEach(0, s.Len()-1, false, func(element *Element) bool {
+		if count == 0 {
+			return false
+		}
+		count--
+		removed = append(removed, element)
+	})
+	for _, member := range removed {
+		s.Remove(member.Member)
+	}
+	return removed
 }
 func (s *SimpleSortedSet) RemoveByRank(start int64, stop int64) int64 {
-	return 0
+	elements := s.Range(start, stop, true)
+	i := 0
+	for _, element := range elements {
+		if s.Remove(element.Member) {
+			i++
+		}
+	}
+	return int64(i)
 }
