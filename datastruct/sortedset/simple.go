@@ -130,7 +130,7 @@ func (s *SimpleSortedSet) Range(start int64, stop int64, desc bool) []*Element {
 	sliceSize := int(stop - start)
 	slice := make([]*Element, sliceSize)
 	i := 0
-	s.ForEach(start, stop, desc, func(element *Element) bool {
+	s.ForEach(start, stop-1, desc, func(element *Element) bool {
 		slice[i] = element
 		i++
 		return true

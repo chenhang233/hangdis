@@ -7,6 +7,7 @@ import (
 	"hangdis/redis/protocol"
 	"hangdis/utils"
 	"strconv"
+	"strings"
 )
 
 func (db *DB) getAsSortedSet(key string) (SortedSet.SortedSet, redis.ErrorReply) {
@@ -216,7 +217,48 @@ func execZCard(db *DB, args [][]byte) redis.Reply {
 }
 
 func execZRange(db *DB, args [][]byte) redis.Reply {
-	return nil
+	withScores := false
+	if len(args) == 4 {
+		if strings.ToLower(string(args[3])) != "withscores" {
+			return protocol.MakeSyntaxErrReply()
+		}
+		withScores = true
+	}
+	key := string(args[0])
+	start64, err := strconv.ParseInt(string(args[1]), 10, 64)
+	if err != nil {
+		return protocol.MakeErrReply("ERR value is not an integer or out of range")
+	}
+	stop64, err := strconv.ParseInt(string(args[2]), 10, 64)
+	if err != nil {
+		return protocol.MakeErrReply("ERR value is not an integer or out of range")
+	}
+	set, err2 := db.getAsSortedSet(key)
+	if err2 != nil {
+		return err2
+	}
+	start, end := utils.ConvertRange2(start64, stop64, set.Len())
+	if start < 0 {
+		return protocol.MakeEmptyMultiBulkReply()
+	}
+	elements := set.Range(start, end, false)
+	if withScores {
+		slice := make([][]byte, len(elements)*2)
+		i := 0
+		for _, e := range elements {
+			slice[i] = []byte(e.Member)
+			i++
+			scoreStr := strconv.FormatFloat(e.Score, 'f', -1, 64)
+			slice[i] = []byte(scoreStr)
+			i++
+		}
+		return protocol.MakeMultiBulkReply(slice)
+	}
+	slice := make([][]byte, len(elements))
+	for i, e := range elements {
+		slice[i] = []byte(e.Member)
+	}
+	return protocol.MakeMultiBulkReply(slice)
 }
 
 func init() {
@@ -227,7 +269,7 @@ func init() {
 	RegisterCommand("ZCOUNT", execZCount, readFirstKey, nil, 4, flagReadOnly)
 	RegisterCommand("ZREVRANK", execZRevRank, readFirstKey, nil, 3, flagReadOnly)
 	RegisterCommand("ZCARD", execZCard, readFirstKey, nil, 2, flagReadOnly)
-	//RegisterCommand("ZRange", execZRange, readFirstKey, nil, -4, flagReadOnly)
+	RegisterCommand("ZRANGE", execZRange, readFirstKey, nil, -4, flagReadOnly)
 	//registerCommand("ZRangeByScore", execZRangeByScore, readFirstKey, nil, -4, flagReadOnly).
 	//registerCommand("ZRevRange", execZRevRange, readFirstKey, nil, -4, flagReadOnly).
 	//registerCommand("ZRevRangeByScore", execZRevRangeByScore, readFirstKey, nil, -4, flagReadOnly).
