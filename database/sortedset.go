@@ -406,8 +406,8 @@ func init() {
 	RegisterCommand("ZCARD", execZCard, readFirstKey, nil, 2, flagReadOnly)
 	RegisterCommand("ZRANGE", execZRange, readFirstKey, nil, -4, flagReadOnly)
 	RegisterCommand("ZRANGEBYSCORE", execZRangeByScore, readFirstKey, nil, -4, flagReadOnly)
-	RegisterCommand("ZRevRange", execZRevRange, readFirstKey, nil, -4, flagReadOnly)
-	RegisterCommand("ZRevRangeByScore", execZRevRangeByScore, readFirstKey, nil, -4, flagReadOnly)
+	RegisterCommand("ZREVRANGE", execZRevRange, readFirstKey, nil, -4, flagReadOnly)
+	RegisterCommand("ZREVRANGEBYSCORE", execZRevRangeByScore, readFirstKey, nil, -4, flagReadOnly)
 	//RegisterCommand("ZPopMin", execZPopMin, writeFirstKey, rollbackFirstKey, -2, flagWrite)
 	//registerCommand("ZRem", execZRem, writeFirstKey, undoZRem, -3, flagWrite).
 	//registerCommand("ZRemRangeByScore", execZRemRangeByScore, writeFirstKey, rollbackFirstKey, 4, flagWrite).
