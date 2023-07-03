@@ -52,6 +52,16 @@ func undoZIncr(db *DB, args [][]byte) []CmdLine {
 	return rollbackZSetFields(db, key, field)
 }
 
+func undoZRem(db *DB, args [][]byte) []CmdLine {
+	key := string(args[0])
+	fields := make([]string, len(args)-1)
+	fieldArgs := args[1:]
+	for i, v := range fieldArgs {
+		fields[i] = string(v)
+	}
+	return rollbackZSetFields(db, key, fields...)
+}
+
 func execZAdd(db *DB, args [][]byte) redis.Reply {
 	key := string(args[0])
 	tp := string(args[1])
@@ -396,6 +406,114 @@ func execZRevRangeByScore(db *DB, args [][]byte) redis.Reply {
 	return zRangeParse1(db, key, min, max, offset, limit, withScores, true)
 }
 
+func execZPopMin(db *DB, args [][]byte) redis.Reply {
+	key := string(args[0])
+	count := 1
+	if len(args) > 1 {
+		var err error
+		count, err = strconv.Atoi(string(args[1]))
+		if err != nil {
+			return protocol.MakeErrReply("ERR value is not an integer or out of range")
+		}
+	}
+
+	sortedSet, errReply := db.getAsSortedSet(key)
+	if errReply != nil {
+		return errReply
+	}
+	if sortedSet == nil {
+		return protocol.MakeEmptyMultiBulkReply()
+	}
+
+	removed := sortedSet.PopMin(count)
+	if len(removed) > 0 {
+		db.addAof(utils.ToCmdLine3("zpopmin", args...))
+	}
+	result := make([][]byte, 0, len(removed)*2)
+	for _, element := range removed {
+		scoreStr := strconv.FormatFloat(element.Score, 'f', -1, 64)
+		result = append(result, []byte(element.Member), []byte(scoreStr))
+	}
+	return protocol.MakeMultiBulkReply(result)
+}
+
+func execZRem(db *DB, args [][]byte) redis.Reply {
+	key := string(args[0])
+	fields := make([]string, len(args)-1)
+	fieldArgs := args[1:]
+	for i, v := range fieldArgs {
+		fields[i] = string(v)
+	}
+	sortedSet, errReply := db.getAsSortedSet(key)
+	if errReply != nil {
+		return errReply
+	}
+	if sortedSet == nil {
+		return protocol.MakeIntReply(0)
+	}
+	var deleted int64 = 0
+	for _, field := range fields {
+		if sortedSet.Remove(field) {
+			deleted++
+		}
+	}
+	if deleted > 0 {
+		db.addAof(utils.ToCmdLine3("zrem", args...))
+	}
+	return protocol.MakeIntReply(deleted)
+}
+
+func execZRemRangeByScore(db *DB, args [][]byte) redis.Reply {
+	key := string(args[0])
+	min, err := SortedSet.ParseScoreBorder(string(args[1]))
+	if err != nil {
+		return protocol.MakeErrReply(err.Error())
+	}
+	max, err := SortedSet.ParseScoreBorder(string(args[2]))
+	if err != nil {
+		return protocol.MakeErrReply(err.Error())
+	}
+	sortedSet, errReply := db.getAsSortedSet(key)
+	if errReply != nil {
+		return errReply
+	}
+	if sortedSet == nil {
+		return &protocol.EmptyMultiBulkReply{}
+	}
+	removed := sortedSet.RemoveByScore(min, max)
+	if removed > 0 {
+		db.addAof(utils.ToCmdLine3("zremrangebyscore", args...))
+	}
+	return protocol.MakeIntReply(removed)
+}
+
+func execZRemRangeByRank(db *DB, args [][]byte) redis.Reply {
+	key := string(args[0])
+	start64, err := strconv.ParseInt(string(args[1]), 10, 64)
+	if err != nil {
+		return protocol.MakeErrReply("ERR value is not an integer or out of range")
+	}
+	stop64, err := strconv.ParseInt(string(args[2]), 10, 64)
+	if err != nil {
+		return protocol.MakeErrReply("ERR value is not an integer or out of range")
+	}
+	// get data
+	sortedSet, errReply := db.getAsSortedSet(key)
+	if errReply != nil {
+		return errReply
+	}
+	if sortedSet == nil {
+		return protocol.MakeIntReply(0)
+	}
+	size := sortedSet.Len()
+	start, stop := utils.ConvertRange(start64, stop64, size)
+	removed := sortedSet.RemoveByRank(int64(start), int64(stop))
+	if removed > 0 {
+		db.addAof(utils.ToCmdLine3("zremrangebyrank", args...))
+	}
+	return protocol.MakeIntReply(removed)
+}
+
 func init() {
 	RegisterCommand("ZADD", execZAdd, writeFirstKey, undoZAdd, -4, flagWrite)
 	RegisterCommand("ZSCORE", execZScore, readFirstKey, nil, 3, flagReadOnly)
@@ -408,8 +526,8 @@ func init() {
 	RegisterCommand("ZRANGEBYSCORE", execZRangeByScore, readFirstKey, nil, -4, flagReadOnly)
 	RegisterCommand("ZREVRANGE", execZRevRange, readFirstKey, nil, -4, flagReadOnly)
 	RegisterCommand("ZREVRANGEBYSCORE", execZRevRangeByScore, readFirstKey, nil, -4, flagReadOnly)
-	//RegisterCommand("ZPopMin", execZPopMin, writeFirstKey, rollbackFirstKey, -2, flagWrite)
-	//registerCommand("ZRem", execZRem, writeFirstKey, undoZRem, -3, flagWrite).
-	//registerCommand("ZRemRangeByScore", execZRemRangeByScore, writeFirstKey, rollbackFirstKey, 4, flagWrite).
-	//registerCommand("ZRemRangeByRank", execZRemRangeByRank, writeFirstKey, rollbackFirstKey, 4, flagWrite).
+	RegisterCommand("ZPOPMIN", execZPopMin, writeFirstKey, rollbackFirstKey, -2, flagWrite)
+	RegisterCommand("ZREM", execZRem, writeFirstKey, undoZRem, -3, flagWrite)
+	RegisterCommand("ZREMRANGEBYSCORE", execZRemRangeByScore, writeFirstKey, rollbackFirstKey, 4, flagWrite)
+	RegisterCommand("ZREMRANGEBYRANK", execZRemRangeByRank, writeFirstKey, rollbackFirstKey, 4, flagWrite)
 }
