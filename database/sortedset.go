@@ -261,6 +261,70 @@ func execZRange(db *DB, args [][]byte) redis.Reply {
 	return protocol.MakeMultiBulkReply(slice)
 }
 
+func execZRangeByScore(db *DB, args [][]byte) redis.Reply {
+	key := string(args[0])
+	min, err := SortedSet.ParseScoreBorder(string(args[1]))
+	if err != nil {
+		return protocol.MakeErrReply(err.Error())
+	}
+	max, err := SortedSet.ParseScoreBorder(string(args[2]))
+	if err != nil {
+		return protocol.MakeErrReply(err.Error())
+	}
+	withScores := false
+	var offset int64 = 0
+	var limit int64 = -1
+	if len(args) > 3 {
+		for i := 3; i < len(args); {
+			s := string(args[i])
+			if strings.ToUpper(s) == "WITHSCORES" {
+				withScores = true
+				i++
+			} else if strings.ToUpper(s) == "LIMIT" {
+				if len(args) < i+3 {
+					return protocol.MakeErrReply("ERR syntax error")
+				}
+				offset, err = strconv.ParseInt(string(args[i+1]), 10, 64)
+				if err != nil {
+					return protocol.MakeErrReply("ERR value is not an integer or out of range")
+				}
+				limit, err = strconv.ParseInt(string(args[i+2]), 10, 64)
+				if err != nil {
+					return protocol.MakeErrReply("ERR value is not an integer or out of range")
+				}
+				i += 3
+			} else {
+				return protocol.MakeErrReply("ERR syntax error")
+			}
+		}
+	}
+	set, err2 := db.getAsSortedSet(key)
+	if err2 != nil {
+		return err2
+	}
+	if set == nil {
+		return protocol.MakeEmptyMultiBulkReply()
+	}
+	elements := set.RangeByScore(min, max, offset, limit, false)
+	if withScores {
+		slice := make([][]byte, len(elements)*2)
+		i := 0
+		for _, e := range elements {
+			slice[i] = []byte(e.Member)
+			i++
+			scoreStr := strconv.FormatFloat(e.Score, 'f', -1, 64)
+			slice[i] = []byte(scoreStr)
+			i++
+		}
+		return protocol.MakeMultiBulkReply(slice)
+	}
+	slice := make([][]byte, len(elements))
+	for i, e := range elements {
+		slice[i] = []byte(e.Member)
+	}
+	return protocol.MakeMultiBulkReply(slice)
+}
+
 func init() {
 	RegisterCommand("ZADD", execZAdd, writeFirstKey, undoZAdd, -4, flagWrite)
 	RegisterCommand("ZSCORE", execZScore, readFirstKey, nil, 3, flagReadOnly)
@@ -270,7 +334,7 @@ func init() {
 	RegisterCommand("ZREVRANK", execZRevRank, readFirstKey, nil, 3, flagReadOnly)
 	RegisterCommand("ZCARD", execZCard, readFirstKey, nil, 2, flagReadOnly)
 	RegisterCommand("ZRANGE", execZRange, readFirstKey, nil, -4, flagReadOnly)
-	//registerCommand("ZRangeByScore", execZRangeByScore, readFirstKey, nil, -4, flagReadOnly).
+	RegisterCommand("ZRANGEBYSCORE", execZRangeByScore, readFirstKey, nil, -4, flagReadOnly)
 	//registerCommand("ZRevRange", execZRevRange, readFirstKey, nil, -4, flagReadOnly).
 	//registerCommand("ZRevRangeByScore", execZRevRangeByScore, readFirstKey, nil, -4, flagReadOnly).
 	//registerCommand("ZPopMin", execZPopMin, writeFirstKey, rollbackFirstKey, -2, flagWrite).

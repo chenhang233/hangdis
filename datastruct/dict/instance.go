@@ -9,7 +9,6 @@ func MakeInstanceDict() *InstanceDict {
 		m: make(map[string]any),
 	}
 }
-
 func (dict *InstanceDict) Get(key string) (val any, exists bool) {
 	val, ok := dict.m[key]
 	return val, ok
