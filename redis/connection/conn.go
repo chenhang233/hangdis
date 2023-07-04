@@ -10,6 +10,7 @@ type Connection struct {
 	conn        net.Conn
 	sendingData sync.WaitGroup
 	mu          sync.Mutex
+	subs        map[string]bool
 	flags       uint64
 	password    string
 	queue       [][][]byte
@@ -33,6 +34,7 @@ func (c *Connection) Close() error {
 	c.queue = nil
 	c.watching = nil
 	c.txErrors = nil
+	c.subs = nil
 	c.selectedDB = 0
 	connPool.Put(c)
 	err := c.conn.Close()
@@ -91,20 +93,40 @@ func (c *Connection) GetTxErrors() []error {
 	return c.txErrors
 }
 
-// -----------------------------------------------------------------------------------------------------------
-
 func (c *Connection) Subscribe(channel string) {
-
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.subs == nil {
+		c.subs = make(map[string]bool)
+	}
+	c.subs[channel] = true
 }
 func (c *Connection) UnSubscribe(channel string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	delete(c.subs, channel)
+}
 
-}
 func (c *Connection) SubsCount() int {
-	return 0
+	return len(c.subs)
 }
+
 func (c *Connection) GetChannels() []string {
-	return nil
+	n := len(c.subs)
+	if n == 0 {
+		return []string{}
+	}
+	channels := make([]string, n)
+	i := 0
+	for channel, _ := range c.subs {
+		channels[i] = channel
+		i++
+	}
+	return channels
 }
+
+// -----------------------------------------------------------------------------------------------------------
+
 func (c *Connection) InMultiState() bool {
 	return false
 }
