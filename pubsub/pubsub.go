@@ -1,9 +1,10 @@
 package pubsub
 
 import (
-	"hangdis/datastruct/list"
+	List "hangdis/datastruct/list"
 	"hangdis/interface/redis"
 	"hangdis/redis/protocol"
+	"hangdis/utils"
 	"strconv"
 )
 
@@ -22,16 +23,38 @@ func makeMsg(t string, channel string, code int64) []byte {
 
 func subscribe0(hub *Hub, channel string, client redis.Connection) bool {
 	client.Subscribe(channel)
-	val, exists := hub.subs.Get(channel)
-	var subscribers *list.LinkedList
+	raw, exists := hub.subs.Get(channel)
+	var subscribers List.List
 	if exists {
-
+		subscribers = raw.(*List.LinkedList)
 	} else {
-
+		subscribers = List.MakeLinked()
 	}
+	if subscribers.Contains(func(a any) bool {
+		return utils.Equals(a, client)
+	}) {
+		return false
+	}
+	subscribers.Add(client)
+	return true
 }
 
-func unsubscribe0(hub *Hub, channel string, client redis.Connection) bool {}
+func unsubscribe0(hub *Hub, channel string, client redis.Connection) bool {
+	client.UnSubscribe(channel)
+	raw, exists := hub.subs.Get(channel)
+	if !exists {
+		return false
+	}
+	var subscribers List.List
+	subscribers = raw.(*List.LinkedList)
+	subscribers.RemoveAllByVal(func(a any) bool {
+		return utils.Equals(a, client)
+	})
+	if subscribers.Len() == 0 {
+		hub.subs.Remove(channel)
+	}
+	return true
+}
 
 func UnsubscribeAll(hub *Hub, c redis.Connection) {}
 

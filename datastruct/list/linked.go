@@ -12,7 +12,13 @@ type node struct {
 	next *node
 }
 
-func Make(vals ...any) *LinkedList {}
+func MakeLinked(vals ...any) *LinkedList {
+	list := &LinkedList{}
+	for _, val := range vals {
+		list.Add(val)
+	}
+	return list
+}
 
 func (list *LinkedList) find(index int) (n *node) {}
 
