@@ -100,10 +100,40 @@ func UnSubscribe(hub *Hub, c redis.Connection, args [][]byte) redis.Reply {
 	}
 	for _, channel := range channels {
 		if unsubscribe0(hub, channel, c) {
-			_, _ = c.Write(makeMsg(_unsubscribe, channel, int64(c.SubsCount())))
+			_, err := c.Write(makeMsg(_unsubscribe, channel, int64(c.SubsCount())))
+			if err != nil {
+				logs.LOG.Warn.Println(err)
+			}
 		}
 	}
 	return protocol.MakeEmptyMultiBulkReply()
 }
 
-func Publish(hub *Hub, args [][]byte) redis.Reply {}
+func Publish(hub *Hub, args [][]byte) redis.Reply {
+	if len(args) != 2 {
+		return protocol.MakeErrReply("publish args")
+	}
+	channel := string(args[0])
+	message := args[1]
+	hub.mu.Lock()
+	defer hub.mu.Unlock()
+	raw, exists := hub.subs.Get(channel)
+	if !exists {
+		return protocol.MakeIntReply(0)
+	}
+	var subscribers List.List
+	subscribers = raw.(*List.LinkedList)
+	subscribers.ForEach(func(i int, v any) bool {
+		c := v.(redis.Connection)
+		replyArgs := make([][]byte, 3)
+		replyArgs[0] = messageBytes
+		replyArgs[1] = []byte(channel)
+		replyArgs[2] = message
+		_, err := c.Write(protocol.MakeMultiBulkReply(replyArgs).ToBytes())
+		if err != nil {
+			logs.LOG.Warn.Println(err)
+		}
+		return true
+	})
+	return protocol.MakeIntReply(int64(subscribers.Len()))
+}
