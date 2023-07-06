@@ -1,6 +1,7 @@
 package pubsub
 
 import (
+	"fmt"
 	List "hangdis/datastruct/list"
 	"hangdis/interface/redis"
 	"hangdis/redis/protocol"
@@ -19,7 +20,8 @@ var (
 func makeMsg(t string, channel string, code int64) []byte {
 	return []byte("*3\r\n$" + strconv.FormatInt(int64(len(t)), 10) + protocol.CRLF + t + protocol.CRLF +
 		"$" + strconv.FormatInt(int64(len(channel)), 10) + protocol.CRLF + channel + protocol.CRLF +
-		":" + strconv.FormatInt(code, 10) + protocol.CRLF)
+		"$" + strconv.FormatInt(int64(len(strconv.FormatInt(code, 10))), 10) + protocol.CRLF +
+		strconv.FormatInt(code, 10) + protocol.CRLF)
 }
 
 func subscribe0(hub *Hub, channel string, client redis.Connection) bool {
@@ -30,6 +32,7 @@ func subscribe0(hub *Hub, channel string, client redis.Connection) bool {
 		subscribers = raw.(*List.LinkedList)
 	} else {
 		subscribers = List.MakeLinked()
+		hub.subs.Put(channel, subscribers)
 	}
 	if subscribers.Contains(func(a any) bool {
 		return utils.Equals(a, client)
@@ -111,7 +114,7 @@ func UnSubscribe(hub *Hub, c redis.Connection, args [][]byte) redis.Reply {
 
 func Publish(hub *Hub, c redis.Connection, args [][]byte) redis.Reply {
 	if len(args) != 2 {
-		return protocol.MakeErrReply("publish args")
+		return protocol.MakeErrReply("ERR publish args")
 	}
 	channel := string(args[0])
 	message := args[1]
@@ -129,6 +132,7 @@ func Publish(hub *Hub, c redis.Connection, args [][]byte) redis.Reply {
 		replyArgs[0] = messageBytes
 		replyArgs[1] = []byte(channel)
 		replyArgs[2] = message
+		fmt.Println(protocol.MakeMultiBulkReply(replyArgs), "publish", c.Name())
 		_, err := c.Write(protocol.MakeMultiBulkReply(replyArgs).ToBytes())
 		if err != nil {
 			logs.LOG.Warn.Println(err)

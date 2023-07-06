@@ -56,7 +56,7 @@ func (server *Server) Exec(c redis.Connection, cmdLine [][]byte) (result redis.R
 	}
 	if p, ok := pubSubTable[cmdName]; ok {
 		exec := p.executor
-		return exec(server.hub, c, cmdLine)
+		return exec(server.hub, c, cmdLine[1:])
 	}
 	index := c.GetDBIndex()
 	db, err := server.selectDB(index)
