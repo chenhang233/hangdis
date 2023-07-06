@@ -5,6 +5,7 @@ import (
 	"hangdis/interface/redis"
 	"hangdis/redis/protocol"
 	"hangdis/utils"
+	"hangdis/utils/logs"
 	"strconv"
 )
 
@@ -56,10 +57,53 @@ func unsubscribe0(hub *Hub, channel string, client redis.Connection) bool {
 	return true
 }
 
-func UnsubscribeAll(hub *Hub, c redis.Connection) {}
+func UnsubscribeAll(hub *Hub, c redis.Connection) {
+	hub.mu.Lock()
+	defer hub.mu.Unlock()
+	for _, channel := range c.GetChannels() {
+		unsubscribe0(hub, channel, c)
+	}
+}
+func Subscribe(hub *Hub, c redis.Connection, args [][]byte) redis.Reply {
+	hub.mu.Lock()
+	defer hub.mu.Unlock()
+	channels := make([]string, len(args))
+	for i, b := range args {
+		channels[i] = string(b)
+	}
+	for _, channel := range channels {
+		if subscribe0(hub, channel, c) {
+			_, err := c.Write(makeMsg(_subscribe, channel, int64(c.SubsCount())))
+			if err != nil {
+				logs.LOG.Warn.Println(err)
+			}
+		}
+	}
+	return protocol.MakeEmptyMultiBulkReply()
+}
 
-func UnSubscribe(db *Hub, c redis.Connection, args [][]byte) redis.Reply {}
+func UnSubscribe(hub *Hub, c redis.Connection, args [][]byte) redis.Reply {
+	hub.mu.Lock()
+	defer hub.mu.Unlock()
+	var channels []string
+	if len(args) > 0 {
+		channels = make([]string, len(args))
+		for i, b := range args {
+			channels[i] = string(b)
+		}
+	} else {
+		channels = c.GetChannels()
+	}
+	if len(channels) == 0 {
+		_, _ = c.Write(unSubscribeNothing)
+		return protocol.MakeEmptyMultiBulkReply()
+	}
+	for _, channel := range channels {
+		if unsubscribe0(hub, channel, c) {
+			_, _ = c.Write(makeMsg(_unsubscribe, channel, int64(c.SubsCount())))
+		}
+	}
+	return protocol.MakeEmptyMultiBulkReply()
+}
 
 func Publish(hub *Hub, args [][]byte) redis.Reply {}
-
-func Subscribe(hub *Hub, c redis.Connection, args [][]byte) redis.Reply {}

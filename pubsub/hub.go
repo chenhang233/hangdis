@@ -1,9 +1,13 @@
 package pubsub
 
-import Dict "hangdis/datastruct/dict"
+import (
+	Dict "hangdis/datastruct/dict"
+	"sync"
+)
 
 type Hub struct {
 	subs Dict.Dict
+	mu   sync.RWMutex
 }
 
 func MakeHub() *Hub {
