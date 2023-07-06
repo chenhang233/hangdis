@@ -12,7 +12,7 @@ import (
 )
 
 type Client struct {
-	conn        net.Conn
+	Conn        net.Conn
 	addr        string
 	pendingReqs chan *request
 	waitingReqs chan *request
@@ -40,7 +40,7 @@ func MakeClient(addr string) (*Client, error) {
 	return &Client{
 		StopStatus:  make(chan int, STOP),
 		addr:        addr,
-		conn:        dial,
+		Conn:        dial,
 		pendingReqs: make(chan *request, chanSize),
 		waitingReqs: make(chan *request, chanSize),
 	}, nil
@@ -55,7 +55,7 @@ func (c *Client) Close() error {
 	close(c.pendingReqs)
 	close(c.waitingReqs)
 	close(c.StopStatus)
-	return c.conn.Close()
+	return c.Conn.Close()
 }
 func (c *Client) Send(args [][]byte) redis.Reply {
 	req := &request{args: args, wait: &sync.WaitGroup{}}
@@ -77,7 +77,7 @@ func (c *Client) doReq(req *request) {
 	}
 	mb := protocol.MakeMultiBulkReply(req.args)
 	bytes := mb.ToBytes()
-	_, err := c.conn.Write(bytes)
+	_, err := c.Conn.Write(bytes)
 	if err != nil {
 		fmt.Println(err)
 		req.wait.Done()
@@ -87,7 +87,7 @@ func (c *Client) doReq(req *request) {
 }
 
 func (c *Client) handleRead() {
-	ch := parser.ParseStream(c.conn)
+	ch := parser.ParseStream(c.Conn)
 	for payload := range ch {
 		if payload.Err != nil {
 			if payload.Err == io.EOF {
@@ -108,4 +108,20 @@ func (c *Client) handlePayload(p *parser.Payload) {
 	w := <-c.waitingReqs
 	w.reply = p.Data
 	w.wait.Done()
+}
+
+func (c *Client) WaitMsg() error {
+	ch := parser.ParseStream(c.Conn)
+	for payload := range ch {
+		if payload.Err != nil {
+			if payload.Err == io.EOF {
+				fmt.Println(utils.Purple("channel closed"))
+				return payload.Err
+			}
+			fmt.Println("client.go WaitMsg payload.Err:", utils.Red(payload.Err.Error()))
+			return payload.Err
+		}
+		ParseReplyType(payload.Data)
+	}
+	return nil
 }

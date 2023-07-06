@@ -1,7 +1,6 @@
 package pubsub
 
 import (
-	"fmt"
 	List "hangdis/datastruct/list"
 	"hangdis/interface/redis"
 	"hangdis/redis/protocol"
@@ -132,10 +131,9 @@ func Publish(hub *Hub, c redis.Connection, args [][]byte) redis.Reply {
 		replyArgs[0] = messageBytes
 		replyArgs[1] = []byte(channel)
 		replyArgs[2] = message
-		fmt.Println(protocol.MakeMultiBulkReply(replyArgs), "publish", c.Name())
 		_, err := c.Write(protocol.MakeMultiBulkReply(replyArgs).ToBytes())
 		if err != nil {
-			logs.LOG.Warn.Println(err)
+			logs.LOG.Warn.Println(utils.Red(err.Error()))
 		}
 		return true
 	})

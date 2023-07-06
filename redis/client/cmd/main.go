@@ -30,7 +30,6 @@ func RegisterCMD(name string, executor ExecFunc) {
 }
 
 func matchCMD(c *client.Client, name string) bool {
-	name = strings.ToLower(name)
 	command := cmdTable[name]
 	if command != nil {
 		e := command.executor
@@ -57,6 +56,18 @@ func clear(c *client.Client) error {
 	return err
 }
 
+func waitMsg(c *client.Client, list []string) error {
+	var err error
+	bys := utils.ToCmdLine(list...)
+	client.ParseReplyType(c.Send(bys))
+	for {
+		err = c.WaitMsg()
+		if err != nil {
+			return err
+		}
+	}
+}
+
 func init() {
 	addr = flag.String("addr", "127.0.0.1:8888", "bind addr")
 	RegisterCMD("quit", quit)
@@ -70,7 +81,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println(utils.Green(fmt.Sprintf("tcp connection establishment addr: %s", *addr)))
+	fmt.Println(utils.Green(fmt.Sprintf("tcp connection establishment addr: %s client: %s", *addr, c.Conn.LocalAddr())))
 	c.Start()
 	fmt.Println(utils.White("Please enter the command"))
 	reader := bufio.NewReader(os.Stdin)
@@ -88,18 +99,20 @@ A:
 			}
 			cmd := string(bs[:len(bs)-2])
 			cmd = strings.Trim(cmd, " ")
+			cmd = strings.ToLower(cmd)
 			f := matchCMD(c, cmd)
 			if f {
 				continue
 			}
 			list := client.ParseInputString(cmd)
-			n := len(list)
-			bys := make([][]byte, n)
-			for i := 0; i < n; i++ {
-				str := list[i]
-				bys[i] = make([]byte, len(str))
-				bys[i] = []byte(str)
+			if list[0] == "subscribe" {
+				err := waitMsg(c, list)
+				fmt.Println("err----109", err)
+				if err != nil {
+					continue
+				}
 			}
+			bys := utils.ToCmdLine(list...)
 			client.ParseReplyType(c.Send(bys))
 		}
 	}
