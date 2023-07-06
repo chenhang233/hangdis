@@ -5,6 +5,7 @@ import (
 	"hangdis/config"
 	"hangdis/interface/database"
 	"hangdis/interface/redis"
+	"hangdis/pubsub"
 	"hangdis/redis/protocol"
 	"hangdis/utils"
 	"hangdis/utils/logs"
@@ -15,10 +16,8 @@ import (
 
 type Server struct {
 	dbSet []*atomic.Value // *DB
-
-	//hub *pubsub.Hub
+	hub   *pubsub.Hub
 	//persister *aof.Persister
-
 	//role int32
 	//slaveStatus  *slaveStatus
 	//masterStatus *masterStatus
@@ -30,9 +29,6 @@ func NewStandaloneServer() *Server {
 		config.Properties.Databases = 16
 	}
 
-	if config.Properties.AppendOnly {
-		// aof
-	}
 	server.dbSet = make([]*atomic.Value, config.Properties.Databases)
 	for i := range server.dbSet {
 		db := makeDB()
@@ -40,6 +36,10 @@ func NewStandaloneServer() *Server {
 		holder := &atomic.Value{}
 		holder.Store(db)
 		server.dbSet[i] = holder
+	}
+	server.hub = pubsub.MakeHub()
+	if config.Properties.AppendOnly {
+		// aof
 	}
 	return server
 }
@@ -53,6 +53,10 @@ func (server *Server) Exec(c redis.Connection, cmdLine [][]byte) (result redis.R
 	if sysCmd, ok := systemTable[cmdName]; ok {
 		exec := sysCmd.executor
 		return exec(c, cmdLine)
+	}
+	if p, ok := pubSubTable[cmdName]; ok {
+		exec := p.executor
+		return exec(server.hub, c, cmdLine)
 	}
 	index := c.GetDBIndex()
 	db, err := server.selectDB(index)

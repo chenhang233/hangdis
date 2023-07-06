@@ -9,6 +9,11 @@ const (
 	odd          = 3
 )
 
+type pubSubCommand struct {
+	executor SubExecFunc
+	flag     int
+}
+
 type systemCommand struct {
 	executor SysExecFunc
 	flag     int
@@ -24,11 +29,12 @@ type Command struct {
 }
 
 var (
+	pubSubTable = make(map[string]*pubSubCommand)
 	systemTable = make(map[string]*systemCommand)
 	cmdTable    = make(map[string]*Command)
 )
 
-func checkTableExist(name string) {
+func checkSysTableExist(name string) {
 	_, exist := systemTable[name]
 	if exist {
 		panic("systemTable[name] exist")
@@ -39,17 +45,27 @@ func checkTableExist(name string) {
 	}
 }
 
+func RegisterPubSubCommand(name string, executor SubExecFunc, flag int) {
+	name = strings.ToLower(name)
+	checkSysTableExist(name)
+	pubSubTable[name] = &pubSubCommand{
+		executor: executor,
+		flag:     flag,
+	}
+}
+
 func RegisterSystemCommand(name string, executor SysExecFunc) {
 	name = strings.ToLower(name)
-	checkTableExist(name)
+	checkSysTableExist(name)
 	systemTable[name] = &systemCommand{
 		executor: executor,
+		flag:     flagReadOnly,
 	}
 }
 
 func RegisterCommand(name string, executor ExecFunc, prepare PreFunc, rollback UndoFunc, arity int, flags int) *Command {
 	name = strings.ToLower(name)
-	checkTableExist(name)
+	checkSysTableExist(name)
 	cmd := &Command{
 		executor: executor,
 		prepare:  prepare,

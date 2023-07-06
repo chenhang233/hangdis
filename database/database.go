@@ -5,6 +5,7 @@ import (
 	"hangdis/datastruct/dict"
 	"hangdis/interface/database"
 	"hangdis/interface/redis"
+	"hangdis/pubsub"
 	"hangdis/redis/protocol"
 	"hangdis/utils"
 	"hangdis/utils/logs"
@@ -31,6 +32,8 @@ type DB struct {
 type ExecFunc func(db *DB, args [][]byte) redis.Reply
 
 type SysExecFunc func(db redis.Connection, args [][]byte) redis.Reply
+
+type SubExecFunc func(hub *pubsub.Hub, c redis.Connection, args [][]byte) redis.Reply
 
 type PreFunc func(args [][]byte) ([]string, []string)
 

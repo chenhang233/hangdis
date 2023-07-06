@@ -109,7 +109,7 @@ func UnSubscribe(hub *Hub, c redis.Connection, args [][]byte) redis.Reply {
 	return protocol.MakeEmptyMultiBulkReply()
 }
 
-func Publish(hub *Hub, args [][]byte) redis.Reply {
+func Publish(hub *Hub, c redis.Connection, args [][]byte) redis.Reply {
 	if len(args) != 2 {
 		return protocol.MakeErrReply("publish args")
 	}
