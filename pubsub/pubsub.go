@@ -1,6 +1,7 @@
 package pubsub
 
 import (
+	"hangdis/datastruct/list"
 	"hangdis/interface/redis"
 	"hangdis/redis/protocol"
 	"strconv"
@@ -22,7 +23,7 @@ func makeMsg(t string, channel string, code int64) []byte {
 func subscribe0(hub *Hub, channel string, client redis.Connection) bool {
 	client.Subscribe(channel)
 	val, exists := hub.subs.Get(channel)
-	//var subscribers *list.LinkedList
+	var subscribers *list.LinkedList
 	if exists {
 
 	} else {
