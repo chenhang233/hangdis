@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"errors"
-	"fmt"
 	"hangdis/interface/redis"
 	"hangdis/redis/protocol"
 	"hangdis/utils/logs"
@@ -19,7 +18,7 @@ type Payload struct {
 }
 
 func ParseStream(reader io.Reader) <-chan *Payload {
-	ch := make(chan *Payload, 3)
+	ch := make(chan *Payload, 2)
 	go parse(reader, ch)
 	return ch
 }
@@ -28,7 +27,6 @@ func parse(rawReader io.Reader, ch chan<- *Payload) {
 	reader := bufio.NewReader(rawReader)
 	for {
 		line, err := reader.ReadBytes('\n')
-		fmt.Println(line, "line--31")
 		if err != nil {
 			if !strings.Contains(err.Error(), "use of closed network connection") {
 				ch <- &Payload{Err: err}
@@ -113,7 +111,6 @@ func parseArray(line []byte, reader *bufio.Reader, ch chan<- *Payload) error {
 			lines = append(lines, body[:len(body)-2])
 		}
 	}
-	fmt.Println(lines, "lines", string(protocol.MakeMultiBulkReply(lines).ToBytes()))
 	ch <- &Payload{Data: protocol.MakeMultiBulkReply(lines)}
 	return nil
 }

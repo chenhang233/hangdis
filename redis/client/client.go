@@ -89,6 +89,7 @@ func (c *Client) doReq(req *request) {
 func (c *Client) handleRead() {
 	ch := parser.ParseStream(c.Conn)
 	for payload := range ch {
+		fmt.Println(payload, "payload 92")
 		if payload.Err != nil {
 			if payload.Err == io.EOF {
 				fmt.Println(utils.Purple("server closed"))
@@ -102,6 +103,7 @@ func (c *Client) handleRead() {
 		}
 		c.handlePayload(payload)
 	}
+	fmt.Println("结束了x")
 }
 
 func (c *Client) handlePayload(p *parser.Payload) {
@@ -110,21 +112,19 @@ func (c *Client) handlePayload(p *parser.Payload) {
 	w.wait.Done()
 }
 
-func (c *Client) WaitMsg(ce chan<- error) {
+func (c *Client) WaitMsg() error {
 	ch := parser.ParseStream(c.Conn)
 	for payload := range ch {
-		fmt.Println(payload, "payload 116")
+		fmt.Println(payload, "payload")
 		if payload.Err != nil {
 			if payload.Err == io.EOF {
 				fmt.Println(utils.Purple("channel closed"))
-				ce <- payload.Err
-				return
+				return payload.Err
 			}
 			fmt.Println("client.go WaitMsg payload.Err:", utils.Red(payload.Err.Error()))
-			ce <- payload.Err
-			return
+			return payload.Err
 		}
 		ParseReplyType(payload.Data)
 	}
-	ce <- nil
+	return nil
 }

@@ -120,3 +120,43 @@ func TestReadFull(t *testing.T) {
 	io.ReadFull(reader, bys)
 	fmt.Println(bys, " bys ", string(bys))
 }
+
+func TestSub(t *testing.T) {
+	dial, _ := net.Dial("tcp", "127.0.0.1:8888")
+	go func() {
+		reader := bufio.NewReader(dial)
+		for {
+			readBytes, err := reader.ReadBytes('\n')
+			if err != nil {
+				fmt.Println(err, "---")
+				break
+			}
+			fmt.Println(string(readBytes))
+		}
+	}()
+	mu := &protocol.MultiBulkReply{
+		Args: [][]byte{
+			[]byte("subscribe"),
+			[]byte("a"),
+		},
+	}
+	dial.Write(mu.ToBytes())
+	for {
+		time.Sleep(time.Second * 2)
+	}
+}
+
+func TestPub(t *testing.T) {
+	dial, _ := net.Dial("tcp", "127.0.0.1:8888")
+	mu := &protocol.MultiBulkReply{
+		Args: [][]byte{
+			[]byte("publish"),
+			[]byte("a"),
+			[]byte("123"),
+		},
+	}
+	for {
+		dial.Write(mu.ToBytes())
+		time.Sleep(time.Second * 2)
+	}
+}

@@ -8,9 +8,7 @@ import (
 	"hangdis/utils"
 	"os"
 	"os/exec"
-	"os/signal"
 	"strings"
-	"syscall"
 )
 
 var (
@@ -45,7 +43,9 @@ func matchCMD(c *client.Client, name string) bool {
 }
 
 func quit(c *client.Client) error {
-	return c.Close()
+	err := c.Close()
+	os.Exit(0)
+	return err
 }
 
 func clear(c *client.Client) error {
@@ -56,32 +56,6 @@ func clear(c *client.Client) error {
 		fmt.Println(err)
 	}
 	return err
-}
-
-func waitMsg(c *client.Client, list []string) error {
-	bys := utils.ToCmdLine(list...)
-	client.ParseReplyType(c.Send(bys))
-	sigCh := make(chan os.Signal)
-	signal.Notify(sigCh, syscall.SIGINT)
-	quitChan := make(chan error)
-	var qFn func()
-	qFn = func() {
-	A:
-		s := <-sigCh
-		switch s {
-		case syscall.SIGINT:
-			fmt.Println("quit subscribe signal")
-			quitChan <- nil
-			return
-		}
-		goto A
-	}
-	go qFn()
-	go c.WaitMsg(quitChan)
-	for {
-		q := <-quitChan
-		return q
-	}
 }
 
 func init() {
@@ -101,35 +75,21 @@ func main() {
 	c.Start()
 	fmt.Println(utils.White("Please enter the command"))
 	reader := bufio.NewReader(os.Stdin)
-A:
 	for {
-		select {
-		case <-c.StopStatus:
-			fmt.Println(utils.Red("Exit signal "))
-			break A
-		default:
-			bs, err := reader.ReadBytes('\n')
-			if err != nil {
-				fmt.Println(utils.Red(err.Error()))
-				continue
-			}
-			cmd := string(bs[:len(bs)-2])
-			cmd = strings.Trim(cmd, " ")
-			cmd = strings.ToLower(cmd)
-			f := matchCMD(c, cmd)
-			if f {
-				continue
-			}
-			list := client.ParseInputString(cmd)
-			if list[0] == "subscribe" {
-				err = waitMsg(c, list)
-				if err != nil {
-					fmt.Println(utils.Red(err.Error()))
-				}
-				continue
-			}
-			bys := utils.ToCmdLine(list...)
-			client.ParseReplyType(c.Send(bys))
+		bs, err := reader.ReadBytes('\n')
+		if err != nil {
+			fmt.Println(utils.Red(err.Error()))
+			continue
 		}
+		cmd := string(bs[:len(bs)-2])
+		cmd = strings.Trim(cmd, " ")
+		cmd = strings.ToLower(cmd)
+		f := matchCMD(c, cmd)
+		if f {
+			continue
+		}
+		list := client.ParseInputString(cmd)
+		bys := utils.ToCmdLine(list...)
+		client.ParseReplyType(c.Send(bys))
 	}
 }
