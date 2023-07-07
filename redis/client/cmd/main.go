@@ -8,7 +8,9 @@ import (
 	"hangdis/utils"
 	"os"
 	"os/exec"
+	"os/signal"
 	"strings"
+	"syscall"
 )
 
 var (
@@ -57,14 +59,28 @@ func clear(c *client.Client) error {
 }
 
 func waitMsg(c *client.Client, list []string) error {
-	var err error
 	bys := utils.ToCmdLine(list...)
 	client.ParseReplyType(c.Send(bys))
-	for {
-		err = c.WaitMsg()
-		if err != nil {
-			return err
+	sigCh := make(chan os.Signal)
+	signal.Notify(sigCh, syscall.SIGINT)
+	quitChan := make(chan error)
+	var qFn func()
+	qFn = func() {
+	A:
+		s := <-sigCh
+		switch s {
+		case syscall.SIGINT:
+			fmt.Println("quit subscribe signal")
+			quitChan <- nil
+			return
 		}
+		goto A
+	}
+	go qFn()
+	go c.WaitMsg(quitChan)
+	for {
+		q := <-quitChan
+		return q
 	}
 }
 
@@ -106,11 +122,11 @@ A:
 			}
 			list := client.ParseInputString(cmd)
 			if list[0] == "subscribe" {
-				err := waitMsg(c, list)
-				fmt.Println("err----109", err)
+				err = waitMsg(c, list)
 				if err != nil {
-					continue
+					fmt.Println(utils.Red(err.Error()))
 				}
+				continue
 			}
 			bys := utils.ToCmdLine(list...)
 			client.ParseReplyType(c.Send(bys))

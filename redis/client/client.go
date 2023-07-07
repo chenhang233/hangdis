@@ -110,18 +110,21 @@ func (c *Client) handlePayload(p *parser.Payload) {
 	w.wait.Done()
 }
 
-func (c *Client) WaitMsg() error {
+func (c *Client) WaitMsg(ce chan<- error) {
 	ch := parser.ParseStream(c.Conn)
 	for payload := range ch {
+		fmt.Println(payload, "payload 116")
 		if payload.Err != nil {
 			if payload.Err == io.EOF {
 				fmt.Println(utils.Purple("channel closed"))
-				return payload.Err
+				ce <- payload.Err
+				return
 			}
 			fmt.Println("client.go WaitMsg payload.Err:", utils.Red(payload.Err.Error()))
-			return payload.Err
+			ce <- payload.Err
+			return
 		}
 		ParseReplyType(payload.Data)
 	}
-	return nil
+	ce <- nil
 }

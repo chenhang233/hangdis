@@ -30,11 +30,14 @@ func ListenAndServeWithSignal(cfg *Config, handler tcp.Handler) error {
 	sigCh := make(chan os.Signal)
 	signal.Notify(sigCh, syscall.SIGHUP, syscall.SIGQUIT, syscall.SIGTERM, syscall.SIGINT)
 	go func() {
+	A:
 		sig := <-sigCh
 		switch sig {
 		case syscall.SIGHUP, syscall.SIGQUIT, syscall.SIGTERM, syscall.SIGINT:
+			fmt.Println(sig.String(), "sig", syscall.SIGHUP, syscall.SIGQUIT, syscall.SIGTERM, syscall.SIGINT)
 			closeChan <- struct{}{}
 		}
+		goto A
 	}()
 	cfg.MaxConnect = utils.GetConnNum(config.Properties.MaxClients)
 	listen, err := net.Listen("tcp", cfg.Address)
