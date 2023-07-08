@@ -15,7 +15,13 @@ func init() {
 	RegisterSystemCommand("PING", Ping)
 	RegisterSystemCommand("INFO", Info)
 	RegisterSystemCommand("AUTH", Auth)
+	RegisterSystemCommand("SAVE", SaveRDB)
 }
+
+func SaveRDB(c redis.Connection, args [][]byte) redis.Reply {
+	return nil
+}
+
 func Ping(c redis.Connection, args [][]byte) redis.Reply {
 	if len(args) == 1 {
 		return protocol.MakePongReply()

@@ -11,15 +11,17 @@ import (
 )
 
 type ServerProperties struct {
-	RuntimeID  string
-	Bind       string `conf:"bind"`
-	Port       uint16 `conf:"port"`
-	BindAddr   string
-	MaxClients int `conf:"maxClients"`
-	AbsPath    string
-	AppendOnly bool   `conf:"appendonly"`
-	Databases  int    `conf:"databases"`
-	Password   string `conf:"requirepass"`
+	RuntimeID      string
+	Bind           string `conf:"bind"`
+	Port           uint16 `conf:"port"`
+	BindAddr       string
+	MaxClients     int `conf:"maxClients"`
+	AbsPath        string
+	AppendOnly     bool   `conf:"appendonly"`
+	AppendFilename string `conf:"appendfilename"`
+	Databases      int    `conf:"databases"`
+	Password       string `conf:"requirepass"`
+	RDBFilename    string `conf:"dbfilename"`
 }
 
 var Properties *ServerProperties
