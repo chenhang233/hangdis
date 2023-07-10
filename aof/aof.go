@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 	"hangdis/interface/database"
+	"hangdis/redis/protocol"
 	"hangdis/utils"
 	"hangdis/utils/logs"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -17,6 +19,8 @@ const (
 )
 
 const (
+	FsyncAlways   = "always"
+	FsyncNo       = "no"
 	FsyncEverySec = "everysec"
 )
 
@@ -44,8 +48,9 @@ type PerSister struct {
 	aofFinished chan struct{}
 	pausingAof  sync.Mutex
 	currentDB   int
-	listeners   map[Listener]struct{}
-	buffer      []CmdLine
+	//listen buffer
+	listeners map[Listener]struct{}
+	buffer    []CmdLine
 }
 
 func NewPerSister(db database.DBEngine, filename string, load bool, fsync string, tmpDBMaker func() database.DBEngine) (*PerSister, error) {
@@ -89,8 +94,34 @@ func (p *PerSister) listenCmd() {
 	p.aofFinished <- struct{}{}
 }
 
-func (p *PerSister) writeAof(payload *payload) {
-
+func (p *PerSister) writeAof(pd *payload) {
+	p.buffer = p.buffer[0:]
+	p.pausingAof.Lock()
+	defer p.pausingAof.Unlock()
+	if p.currentDB != pd.dbIndex {
+		selectCmd := utils.ToCmdLine("SELECT", strconv.Itoa(pd.dbIndex))
+		p.buffer = append(p.buffer, selectCmd)
+		data := protocol.MakeMultiBulkReply(selectCmd).ToBytes()
+		_, err := p.aofFile.Write(data)
+		if err != nil {
+			logs.LOG.Warn.Println(err)
+			return
+		}
+		p.currentDB = pd.dbIndex
+	}
+	data := protocol.MakeMultiBulkReply(pd.cmdLine).ToBytes()
+	p.buffer = append(p.buffer, pd.cmdLine)
+	_, err := p.aofFile.Write(data)
+	if err != nil {
+		logs.LOG.Warn.Println(err)
+		return
+	}
+	for listener := range p.listeners {
+		listener.Callback(p.buffer)
+	}
+	if p.aofFsync == FsyncAlways {
+		_ = p.aofFile.Sync()
+	}
 }
 
 func (p *PerSister) Fsync() {
@@ -99,6 +130,22 @@ func (p *PerSister) Fsync() {
 		logs.LOG.Error.Println(utils.Red(fmt.Sprintf("fsync failed: %v", err)))
 	}
 	p.pausingAof.Unlock()
+}
+
+func (p *PerSister) SaveCmdLine(dbIndex int, cmdLine CmdLine) {
+	if p.aofChan == nil {
+		logs.LOG.Warn.Println(utils.Red("aofChan not found"))
+		return
+	}
+	pd := &payload{
+		dbIndex: dbIndex,
+		cmdLine: cmdLine,
+	}
+	if p.aofFsync == FsyncAlways {
+		p.writeAof(pd)
+		return
+	}
+	p.aofChan <- pd
 }
 
 func (p *PerSister) fsyncEverySecond() {
