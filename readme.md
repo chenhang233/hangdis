@@ -21,6 +21,7 @@
     - server.go:  服务实例
     - database.go: 单个database
     - router.go: 注册处理回调函数
+    - persister.go: aof模块结构体封装
     - universal.go: 通用命令
     - string.go: 字符串命令
     - list.go: 列表命令
