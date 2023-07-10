@@ -38,3 +38,11 @@ type PerSister struct {
 	listeners   map[Listener]struct{}
 	buffer      []CmdLine
 }
+
+func NewPerSister(db database.DBEngine, filename string, load bool, fsync string, tmpDBMaker func() database.DBEngine) (*PerSister, error) {
+
+}
+
+func (p *PerSister) LoadAof(maxBytes int) {
+
+}

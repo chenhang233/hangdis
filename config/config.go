@@ -22,6 +22,7 @@ type ServerProperties struct {
 	Databases      int    `conf:"databases"`
 	Password       string `conf:"requirepass"`
 	RDBFilename    string `conf:"dbfilename"`
+	Dir            string `conf:"dir"`
 }
 
 var Properties *ServerProperties
@@ -89,4 +90,8 @@ func SetupConfig(configName string) {
 		panic(err)
 	}
 	Properties.AbsPath = abs
+}
+
+func GetTmpDir() string {
+	return Properties.Dir + "/tmp"
 }
