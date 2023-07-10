@@ -19,9 +19,10 @@ type ServerProperties struct {
 	AbsPath        string
 	AppendOnly     bool   `conf:"appendonly"`
 	AppendFilename string `conf:"appendfilename"`
+	AppendFsync    string `conf:"appendfsync"`
+	RDBFilename    string `conf:"dbfilename"`
 	Databases      int    `conf:"databases"`
 	Password       string `conf:"requirepass"`
-	RDBFilename    string `conf:"dbfilename"`
 	Dir            string `conf:"dir"`
 }
 

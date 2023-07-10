@@ -2,6 +2,7 @@ package database
 
 import (
 	"fmt"
+	"hangdis/aof"
 	"hangdis/config"
 	"hangdis/interface/database"
 	"hangdis/interface/redis"
@@ -9,18 +10,21 @@ import (
 	"hangdis/redis/protocol"
 	"hangdis/utils"
 	"hangdis/utils/logs"
+	"os"
 	"strings"
 	"sync/atomic"
 	"time"
 )
 
 type Server struct {
-	dbSet []*atomic.Value // *DB
-	hub   *pubsub.Hub
-	//persister *aof.Persister
-	//role int32
-	//slaveStatus  *slaveStatus
-	//masterStatus *masterStatus
+	dbSet     []*atomic.Value // *DB
+	hub       *pubsub.Hub
+	perSister *aof.PerSister
+}
+
+func fileExists(filename string) bool {
+	info, err := os.Stat(filename)
+	return err == nil && !info.IsDir()
 }
 
 func NewStandaloneServer() *Server {
@@ -28,7 +32,10 @@ func NewStandaloneServer() *Server {
 	if config.Properties.Databases == 0 {
 		config.Properties.Databases = 16
 	}
-
+	err := os.MkdirAll(config.GetTmpDir(), os.ModePerm)
+	if err != nil {
+		panic(fmt.Sprintf("create tmp dir failed: %v", err))
+	}
 	server.dbSet = make([]*atomic.Value, config.Properties.Databases)
 	for i := range server.dbSet {
 		db := makeDB()
@@ -38,8 +45,21 @@ func NewStandaloneServer() *Server {
 		server.dbSet[i] = holder
 	}
 	server.hub = pubsub.MakeHub()
+	validAof := false
 	if config.Properties.AppendOnly {
-		// aof
+		validAof = fileExists(config.Properties.AppendFilename)
+		aofHandler, err := NewPerSister(server,
+			config.Properties.AppendFilename, true, config.Properties.AppendFsync)
+		if err != nil {
+			panic(err)
+		}
+		server.bindPerSister(aofHandler)
+	}
+	if config.Properties.RDBFilename != "" && !validAof {
+		err := server.loadRdbFile()
+		if err != nil {
+			logs.LOG.Error.Println(err)
+		}
 	}
 	return server
 }
@@ -82,10 +102,26 @@ func isAuthenticated(c redis.Connection, cmdName string) bool {
 }
 
 func (server *Server) AfterClientClose(c redis.Connection) {
-
+	pubsub.UnsubscribeAll(server.hub, c)
 }
 
-func (server *Server) Close() {}
+func (server *Server) Close() {
+	if server.perSister != nil {
+		//server.perSister.Close()
+	}
+}
+
+func (server *Server) mustSelectDB(dbIndex int) *DB {
+	selectedDB, err := server.selectDB(dbIndex)
+	if err != nil {
+		panic(err)
+	}
+	return selectedDB
+}
+func (server *Server) GetDBSize(dbIndex int) (int, int) {
+	db := server.mustSelectDB(dbIndex)
+	return db.data.Len(), db.ttlMap.Len()
+}
 
 func (server *Server) ExecWithLock(conn redis.Connection, cmdLine [][]byte) redis.Reply {
 	return nil
@@ -103,7 +139,4 @@ func (server *Server) RWLocks(dbIndex int, writeKeys []string, readKeys []string
 }
 func (server *Server) RWUnLocks(dbIndex int, writeKeys []string, readKeys []string) {
 
-}
-func (server *Server) GetDBSize(dbIndex int) (int, int) {
-	return 0, 0
 }

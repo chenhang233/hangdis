@@ -41,6 +41,16 @@ type CmdLine = [][]byte
 
 type UndoFunc func(db *DB, args [][]byte) []CmdLine
 
+func makeBasicDB() *DB {
+	return &DB{
+		index:      0,
+		data:       dict.MakeConcurrent(dataDictSize),
+		ttlMap:     dict.MakeConcurrent(ttlDictSize),
+		versionMap: dict.MakeConcurrent(dataDictSize),
+		addAof:     func(line CmdLine) {},
+	}
+}
+
 func makeDB() *DB {
 	return &DB{
 		index:      0,
