@@ -84,6 +84,10 @@ func (server *Server) Exec(c redis.Connection, cmdLine [][]byte) (result redis.R
 			return protocol.MakeErrReply("ERR command 'FlushDB' cannot be used in MULTI")
 		}
 		return server.execFlushDB(c.GetDBIndex())
+	} else if cmdName == "save" {
+		return SaveRDB(server, cmdLine)
+	} else if cmdName == "bgsave" {
+		return BGSaveRDB(server, cmdLine)
 	}
 	if p, ok := pubSubTable[cmdName]; ok {
 		exec := p.executor
@@ -171,17 +175,60 @@ func (server *Server) loadDB(dbIndex int, newDB *DB) redis.Reply {
 	return &protocol.OkReply{}
 }
 
+func SaveRDB(db *Server, args [][]byte) redis.Reply {
+	if db.perSister == nil {
+		return protocol.MakeErrReply("please enable aof before using save")
+	}
+	rdbFilename := config.Properties.RDBFilename
+	if rdbFilename == "" {
+		rdbFilename = "dump.rdb"
+	}
+	err := db.perSister.GenerateRDB(rdbFilename)
+	if err != nil {
+		return protocol.MakeErrReply(err.Error())
+	}
+	return protocol.MakeOkReply()
+}
+func BGSaveRDB(db *Server, args [][]byte) redis.Reply {
+	if db.perSister == nil {
+		return protocol.MakeErrReply("please enable aof before using save")
+	}
+	go func() {
+		defer func() {
+			if err := recover(); err != nil {
+				logs.LOG.Error.Println(err)
+			}
+		}()
+		rdbFilename := config.Properties.RDBFilename
+		if rdbFilename == "" {
+			rdbFilename = "dump.rdb"
+		}
+		err := db.perSister.GenerateRDB(rdbFilename)
+		if err != nil {
+			logs.LOG.Error.Println(err)
+		}
+	}()
+	return protocol.MakeStatusReply("Background saving started")
+}
+
 func (server *Server) ExecWithLock(conn redis.Connection, cmdLine [][]byte) redis.Reply {
 	return nil
 }
 func (server *Server) ExecMulti(conn redis.Connection, watching map[string]uint32, cmdLines []database.CmdLine) redis.Reply {
-	return nil
+	//selectedDB, errReply := server.selectDB(conn.GetDBIndex())
+	//if errReply != nil {
+	//	return errReply
+	//}
+	//return selectedDB
 }
 func (server *Server) GetUndoLogs(dbIndex int, cmdLine [][]byte) []database.CmdLine {
+	//return server.mustSelectDB(dbIndex)=
 	return nil
 }
 func (server *Server) ForEach(dbIndex int, cb func(key string, data *database.DataEntity, expiration *time.Time) bool) {
+	server.mustSelectDB(dbIndex).ForEach(cb)
 }
+
 func (server *Server) RWLocks(dbIndex int, writeKeys []string, readKeys []string) {
 
 }

@@ -215,17 +215,18 @@ func EnqueueCmd(conn redis.Connection, cmdLine [][]byte) redis.Reply {
 	return protocol.MakeEmptyMultiBulkReply()
 }
 
-func (db *DB) ExecWithLock(conn redis.Connection, cmdLine [][]byte) redis.Reply {
-	return nil
-}
-func (db *DB) ExecMulti(conn redis.Connection, watching map[string]uint32, cmdLines []CmdLine) redis.Reply {
-	return nil
-}
-func (db *DB) GetUndoLogs(cmdLine [][]byte) []CmdLine {
-	return nil
-}
 func (db *DB) ForEach(cb func(key string, data *database.DataEntity, expiration *time.Time) bool) {
+	db.data.ForEach(func(key string, raw interface{}) bool {
+		entity, _ := raw.(*database.DataEntity)
+		var expiration *time.Time
+		rawExpireTime, ok := db.ttlMap.Get(key)
+		if ok {
+			expireTime, _ := rawExpireTime.(time.Time)
+			expiration = &expireTime
+		}
 
+		return cb(key, entity, expiration)
+	})
 }
 func (db *DB) RWLocks(writeKeys []string, readKeys []string) {
 	//if len(readKeys) > 0 {
@@ -256,6 +257,12 @@ func (db *DB) GetVersion(key string) uint32 {
 	return val.(uint32)
 }
 
-func (db *DB) GetDBSize() (int, int) {
-	return 0, 0
-}
+//func (db *DB) ExecWithLock(conn redis.Connection, cmdLine [][]byte) redis.Reply {
+//	return nil
+//}
+//func (db *DB) ExecMulti(conn redis.Connection, watching map[string]uint32, cmdLines []CmdLine) redis.Reply {
+//	return nil
+//}
+//func (db *DB) GetUndoLogs(cmdLine [][]byte) []CmdLine {
+//	return nil
+//}
