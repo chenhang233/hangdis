@@ -67,12 +67,23 @@ func NewStandaloneServer() *Server {
 func (server *Server) Exec(c redis.Connection, cmdLine [][]byte) (result redis.Reply) {
 	cmdName := strings.ToLower(string(cmdLine[0]))
 	logs.LOG.Debug.Println(utils.Yellow(fmt.Sprintf("client info: %s  current execution command: %s", c.Name(), cmdName)))
-	if !isAuthenticated(c, cmdName) {
-		return protocol.MakeErrReply("Authentication required")
-	}
 	if sysCmd, ok := systemTable[cmdName]; ok {
 		exec := sysCmd.executor
 		return exec(c, cmdLine)
+	}
+	if !isAuthenticated(c, cmdName) {
+		return protocol.MakeErrReply("Authentication required")
+	}
+	if cmdName == "flushall" {
+		return server.flushAll()
+	} else if cmdName == "flushdb" {
+		if !validateArity(1, cmdLine) {
+			return protocol.MakeErrReply("ERR arg")
+		}
+		if c.InMultiState() {
+			return protocol.MakeErrReply("ERR command 'FlushDB' cannot be used in MULTI")
+		}
+		return server.execFlushDB(c.GetDBIndex())
 	}
 	if p, ok := pubSubTable[cmdName]; ok {
 		exec := p.executor
@@ -121,6 +132,43 @@ func (server *Server) mustSelectDB(dbIndex int) *DB {
 func (server *Server) GetDBSize(dbIndex int) (int, int) {
 	db := server.mustSelectDB(dbIndex)
 	return db.data.Len(), db.ttlMap.Len()
+}
+
+func (server *Server) flushAll() redis.Reply {
+	for i := range server.dbSet {
+		server.flushDB(i)
+	}
+	if server.perSister != nil {
+		server.perSister.SaveCmdLine(0, utils.ToCmdLine("FlushAll"))
+	}
+	return &protocol.OkReply{}
+}
+
+func (server *Server) flushDB(dbIndex int) redis.Reply {
+	if dbIndex >= len(server.dbSet) || dbIndex < 0 {
+		return protocol.MakeErrReply("ERR DB index is out of range")
+	}
+	newDB := makeDB()
+	server.loadDB(dbIndex, newDB)
+	return &protocol.OkReply{}
+}
+
+func (server *Server) execFlushDB(dbIndex int) redis.Reply {
+	if server.perSister != nil {
+		server.perSister.SaveCmdLine(dbIndex, utils.ToCmdLine("FlushDB"))
+	}
+	return server.flushDB(dbIndex)
+}
+
+func (server *Server) loadDB(dbIndex int, newDB *DB) redis.Reply {
+	if dbIndex >= len(server.dbSet) || dbIndex < 0 {
+		return protocol.MakeErrReply("ERR DB index is out of range")
+	}
+	oldDB := server.mustSelectDB(dbIndex)
+	newDB.index = dbIndex
+	newDB.addAof = oldDB.addAof
+	server.dbSet[dbIndex].Store(newDB)
+	return &protocol.OkReply{}
 }
 
 func (server *Server) ExecWithLock(conn redis.Connection, cmdLine [][]byte) redis.Reply {
