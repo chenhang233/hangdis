@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 	"hangdis/interface/database"
+	"hangdis/redis/parser"
 	"hangdis/redis/protocol"
 	"hangdis/utils"
 	"hangdis/utils/logs"
+	"io"
 	"os"
 	"strconv"
 	"strings"
@@ -84,7 +86,37 @@ func NewPerSister(db database.DBEngine, filename string, load bool, fsync string
 }
 
 func (p *PerSister) LoadAof(maxBytes int) {
-
+	aofChan := p.aofChan
+	p.aofChan = nil
+	defer func(aofChan chan *payload) {
+		p.aofChan = aofChan
+	}(aofChan)
+	file, err := os.Open(p.aofFilename)
+	if err != nil {
+		logs.LOG.Error.Println(err)
+		return
+	}
+	defer file.Close()
+	stream := parser.ParseStream(file)
+	for sp := range stream {
+		if sp.Err != nil {
+			if sp.Err == io.EOF {
+				break
+			}
+			logs.LOG.Warn.Println("parse error: " + sp.Err.Error())
+			continue
+		}
+		if sp.Data == nil {
+			logs.LOG.Warn.Println("empty payload")
+			continue
+		}
+		r, ok := sp.Data.(*protocol.MultiBulkReply)
+		if !ok {
+			logs.LOG.Warn.Println("require multi bulk protocol")
+			continue
+		}
+		p.db.Exec()
+	}
 }
 
 func (p *PerSister) listenCmd() {
