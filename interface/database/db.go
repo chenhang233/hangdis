@@ -25,5 +25,5 @@ type DBEngine interface {
 }
 
 type DataEntity struct {
-	Data interface{}
+	Data any
 }

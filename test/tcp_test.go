@@ -36,3 +36,9 @@ func TestContext(t *testing.T) {
 		fmt.Println("done")
 	}
 }
+
+func TestByte(t *testing.T) {
+	const a = 66
+	bys := []byte{a}
+	fmt.Println(bys, string(bys))
+}

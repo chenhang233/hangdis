@@ -2,6 +2,7 @@ package protocol
 
 import (
 	"bytes"
+	"hangdis/interface/redis"
 	"strconv"
 )
 
@@ -138,4 +139,8 @@ func MakeIntReply(code int64) *IntReply {
 
 func (r *IntReply) ToBytes() []byte {
 	return []byte(":" + strconv.FormatInt(r.Code, 10) + CRLF)
+}
+
+func IsErrorReply(reply redis.Reply) bool {
+	return reply.ToBytes()[0] == '-'
 }

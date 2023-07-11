@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"hangdis/interface/database"
+	"hangdis/redis/connection"
 	"hangdis/redis/parser"
 	"hangdis/redis/protocol"
 	"hangdis/utils"
@@ -98,6 +99,7 @@ func (p *PerSister) LoadAof(maxBytes int) {
 	}
 	defer file.Close()
 	stream := parser.ParseStream(file)
+	fakeConn := connection.NewFakeConn()
 	for sp := range stream {
 		if sp.Err != nil {
 			if sp.Err == io.EOF {
@@ -115,7 +117,18 @@ func (p *PerSister) LoadAof(maxBytes int) {
 			logs.LOG.Warn.Println("require multi bulk protocol")
 			continue
 		}
-		p.db.Exec()
+		res := p.db.Exec(fakeConn, r.Args)
+		if protocol.IsErrorReply(res) {
+			logs.LOG.Error.Println("exec err", string(res.ToBytes()))
+			continue
+		}
+		if strings.ToLower(string(r.Args[0])) == "select" {
+			dbIndex, err := strconv.Atoi(string(r.Args[1]))
+			if err != nil {
+				logs.LOG.Debug.Println(err, " db index :", dbIndex)
+			}
+			p.currentDB = dbIndex
+		}
 	}
 }
 
