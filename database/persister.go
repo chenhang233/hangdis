@@ -1,9 +1,11 @@
 package database
 
 import (
+	"fmt"
 	"hangdis/aof"
 	"hangdis/config"
 	"hangdis/interface/database"
+	"hangdis/utils/logs"
 	"os"
 	"sync/atomic"
 )
@@ -29,8 +31,9 @@ func (server *Server) bindPerSister(aofHandler *aof.PerSister) {
 	server.perSister = aofHandler
 	for _, db := range server.dbSet {
 		singleDB := db.Load().(*DB)
+		logs.LOG.Info.Println(fmt.Sprintf("Database %d, Start listening to addAof", singleDB.index))
 		singleDB.addAof = func(line CmdLine) {
-			if config.Properties.AppendOnly { // config may be changed during runtime
+			if config.Properties.AppendOnly {
 				server.perSister.SaveCmdLine(singleDB.index, line)
 			}
 		}

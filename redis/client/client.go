@@ -89,7 +89,6 @@ func (c *Client) doReq(req *request) {
 func (c *Client) handleRead() {
 	ch := parser.ParseStream(c.Conn)
 	for payload := range ch {
-		fmt.Println(payload, "payload 92")
 		if payload.Err != nil {
 			if payload.Err == io.EOF {
 				fmt.Println(utils.Purple("server closed"))
@@ -115,7 +114,6 @@ func (c *Client) handlePayload(p *parser.Payload) {
 func (c *Client) WaitMsg() error {
 	ch := parser.ParseStream(c.Conn)
 	for payload := range ch {
-		fmt.Println(payload, "payload")
 		if payload.Err != nil {
 			if payload.Err == io.EOF {
 				fmt.Println(utils.Purple("channel closed"))

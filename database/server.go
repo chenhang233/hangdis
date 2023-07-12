@@ -220,6 +220,7 @@ func (server *Server) ExecMulti(conn redis.Connection, watching map[string]uint3
 	//	return errReply
 	//}
 	//return selectedDB
+	return nil
 }
 func (server *Server) GetUndoLogs(dbIndex int, cmdLine [][]byte) []database.CmdLine {
 	//return server.mustSelectDB(dbIndex)=

@@ -31,6 +31,7 @@ func (p *PerSister) GenerateRDB(rdbFilename string) error {
 	fileInfo, _ := os.Stat(p.aofFilename)
 	filesize := fileInfo.Size()
 	tmpFile, err := os.CreateTemp(config.GetTmpDir(), "*.aof")
+	time.Sleep(time.Second * 5)
 	if err != nil {
 		logs.LOG.Debug.Println("tmp file create failed")
 		return err
