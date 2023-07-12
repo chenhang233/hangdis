@@ -94,5 +94,8 @@ func SetupConfig(configName string) {
 }
 
 func GetTmpDir() string {
+	if Properties.Dir == "" {
+		return "tmp"
+	}
 	return Properties.Dir + "/tmp"
 }
