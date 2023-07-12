@@ -1,6 +1,8 @@
 package rdb
 
 import (
+	"encoding/json"
+	SortedSet "hangdis/datastruct/sortedset"
 	"hangdis/utils/logs"
 	"os"
 	"strconv"
@@ -29,11 +31,19 @@ func NewEncoder(f *os.File) *Encoder {
 	}
 }
 
+func (e *Encoder) WriteCRLF() {
+	_, err := e.f.Write(CRLF)
+	if err != nil {
+		logs.LOG.Debug.Println(err)
+	}
+}
+
 func (e *Encoder) Write(p []byte) {
 	_, err := e.f.Write(p)
 	if err != nil {
 		logs.LOG.Debug.Println(err)
 	}
+	e.WriteCRLF()
 }
 
 func (e *Encoder) WriteString(s string) {
@@ -41,6 +51,7 @@ func (e *Encoder) WriteString(s string) {
 	if err != nil {
 		logs.LOG.Debug.Println(err)
 	}
+	e.WriteCRLF()
 }
 
 func (e *Encoder) writeTTL(expiration TTLOption) {
@@ -64,19 +75,50 @@ func (e *Encoder) WriteStringObject(key string, value []byte, options ...any) er
 	e.Write([]byte{typeString})
 	e.WriteString(key)
 	e.Write(value)
-	e.Write(CRLF)
+	return nil
 }
 func (e *Encoder) WriteListObject(key string, values [][]byte, options ...any) error {
-
+	e.beforeWriteObject(options)
+	e.Write([]byte{typeList})
+	e.WriteString(key)
+	for _, v := range values {
+		e.Write(v)
+	}
+	e.WriteCRLF()
+	return nil
 }
-func (e *Encoder) WriteSetObject(key string, value [][]byte, options ...any) error {
-
+func (e *Encoder) WriteSetObject(key string, values [][]byte, options ...any) error {
+	e.beforeWriteObject(options)
+	e.Write([]byte{typeSet})
+	e.WriteString(key)
+	for _, v := range values {
+		e.Write(v)
+	}
+	e.WriteCRLF()
+	return nil
 }
 
 func (e *Encoder) WriteHashMapObject(key string, hash map[string][]byte, options ...any) error {
-
+	e.beforeWriteObject(options)
+	e.Write([]byte{typeHashMap})
+	e.WriteString(key)
+	for k, v := range hash {
+		e.WriteString(k)
+		e.Write(v)
+	}
+	e.WriteCRLF()
+	return nil
 }
 
-func (e *Encoder) WriteZSetObject(key string, entries []*model.ZSetEntry, options ...any) error {
-
+func (e *Encoder) WriteZSetObject(key string, entries []*SortedSet.Element, options ...any) error {
+	e.beforeWriteObject(options)
+	e.Write([]byte{typeZSet})
+	e.WriteString(key)
+	data, err := json.Marshal(entries)
+	if err != nil {
+		return err
+	}
+	e.Write(data)
+	e.WriteCRLF()
+	return nil
 }
