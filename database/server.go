@@ -11,6 +11,7 @@ import (
 	"hangdis/utils"
 	"hangdis/utils/logs"
 	"os"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -88,6 +89,14 @@ func (server *Server) Exec(c redis.Connection, cmdLine [][]byte) (result redis.R
 		return SaveRDB(server, cmdLine)
 	} else if cmdName == "bgsave" {
 		return BGSaveRDB(server, cmdLine)
+	} else if cmdName == "select" {
+		if c != nil && c.InMultiState() {
+			return protocol.MakeErrReply("cannot select database within multi")
+		}
+		if len(cmdLine) != 2 {
+			return protocol.MakeErrReply("ERR select")
+		}
+		return execSelect(c, server, cmdLine[1:])
 	}
 	if p, ok := pubSubTable[cmdName]; ok {
 		exec := p.executor
@@ -100,6 +109,18 @@ func (server *Server) Exec(c redis.Connection, cmdLine [][]byte) (result redis.R
 		return err
 	}
 	return db.Exec(c, cmdLine)
+}
+
+func execSelect(c redis.Connection, mdb *Server, args [][]byte) redis.Reply {
+	dbIndex, err := strconv.Atoi(string(args[0]))
+	if err != nil {
+		return protocol.MakeErrReply("ERR invalid DB index")
+	}
+	if dbIndex >= len(mdb.dbSet) || dbIndex < 0 {
+		return protocol.MakeErrReply("ERR DB index is out of range")
+	}
+	c.SelectDB(dbIndex)
+	return protocol.MakeOkReply()
 }
 
 func (server *Server) selectDB(dbIndex int) (*DB, *protocol.StandardErrReply) {
