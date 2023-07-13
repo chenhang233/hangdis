@@ -89,6 +89,16 @@ func (server *Server) Exec(c redis.Connection, cmdLine [][]byte) (result redis.R
 		return SaveRDB(server, cmdLine)
 	} else if cmdName == "bgsave" {
 		return BGSaveRDB(server, cmdLine)
+	} else if cmdName == "bgrewriteaof" {
+		if !config.Properties.AppendOnly {
+			return protocol.MakeErrReply("AppendOnly is false")
+		}
+		return BGRewriteAOF(server, cmdLine[1:])
+	} else if cmdName == "rewriteaof" {
+		if !config.Properties.AppendOnly {
+			return protocol.MakeErrReply("AppendOnly is false")
+		}
+		return RewriteAOF(server, cmdLine[1:])
 	} else if cmdName == "select" {
 		if c != nil && c.InMultiState() {
 			return protocol.MakeErrReply("cannot select database within multi")
@@ -230,6 +240,19 @@ func BGSaveRDB(db *Server, args [][]byte) redis.Reply {
 		}
 	}()
 	return protocol.MakeStatusReply("Background saving started")
+}
+
+func BGRewriteAOF(db *Server, args [][]byte) redis.Reply {
+	go db.perSister.Rewrite()
+	return protocol.MakeStatusReply("Background append only file rewriting started")
+}
+
+func RewriteAOF(db *Server, args [][]byte) redis.Reply {
+	err := db.perSister.Rewrite()
+	if err != nil {
+		return protocol.MakeErrReply(err.Error())
+	}
+	return protocol.MakeOkReply()
 }
 
 func (server *Server) ExecWithLock(conn redis.Connection, cmdLine [][]byte) redis.Reply {

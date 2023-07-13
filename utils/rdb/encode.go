@@ -2,6 +2,7 @@ package rdb
 
 import (
 	"encoding/json"
+	"fmt"
 	SortedSet "hangdis/datastruct/sortedset"
 	"hangdis/utils/logs"
 	"os"
@@ -29,6 +30,12 @@ func NewEncoder(f *os.File) *Encoder {
 	return &Encoder{
 		f: f,
 	}
+}
+
+func (e *Encoder) WriteDBHeader(dbIndex uint, keyCount, ttlCount uint64) error {
+	sf := fmt.Sprintf("%s,%s,%s", strconv.FormatUint(uint64(dbIndex), 10), strconv.FormatUint(keyCount, 10), strconv.FormatUint(ttlCount, 10))
+	e.Write([]byte(sf))
+	return nil
 }
 
 func (e *Encoder) WriteCRLF() {

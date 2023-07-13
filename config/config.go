@@ -11,19 +11,20 @@ import (
 )
 
 type ServerProperties struct {
-	RuntimeID      string
-	Bind           string `conf:"bind"`
-	Port           uint16 `conf:"port"`
-	BindAddr       string
-	MaxClients     int `conf:"maxClients"`
-	AbsPath        string
-	AppendOnly     bool   `conf:"appendonly"`
-	AppendFilename string `conf:"appendfilename"`
-	AppendFsync    string `conf:"appendfsync"`
-	RDBFilename    string `conf:"dbfilename"`
-	Databases      int    `conf:"databases"`
-	Password       string `conf:"requirepass"`
-	Dir            string `conf:"dir"`
+	RuntimeID         string
+	Bind              string `conf:"bind"`
+	Port              uint16 `conf:"port"`
+	BindAddr          string
+	MaxClients        int `conf:"maxClients"`
+	AbsPath           string
+	AppendOnly        bool   `conf:"appendonly"`
+	AppendFilename    string `conf:"appendfilename"`
+	AppendFsync       string `conf:"appendfsync"`
+	AofUseRdbPreamble bool   `conf:"aof-use-rdb-preamble"`
+	RDBFilename       string `conf:"dbfilename"`
+	Databases         int    `conf:"databases"`
+	Password          string `conf:"requirepass"`
+	Dir               string `conf:"dir"`
 }
 
 var Properties *ServerProperties
