@@ -6,6 +6,7 @@ import (
 	"hangdis/config"
 	"hangdis/interface/database"
 	"hangdis/utils/logs"
+	"hangdis/utils/rdb"
 	"os"
 	"sync/atomic"
 )
@@ -48,6 +49,31 @@ func (server *Server) loadRdbFile() error {
 	defer func() {
 		_ = rdbFile.Close()
 	}()
-	// ----
+	decoder := rdb.NewDecoder(rdbFile)
+	err = server.LoadRDB(decoder)
+	if err != nil {
+		return err
+	}
 	return nil
+}
+
+func (server *Server) LoadRDB(dec *rdb.Decoder) error {
+	return dec.Parse(func(obj rdb.RedisObject) bool {
+		db := server.mustSelectDB(obj.GetDBIndex())
+		var entity *database.DataEntity
+		switch obj.GetType() {
+		case rdb.TypeString:
+			entity = &database.DataEntity{
+				Data: obj.V,
+			}
+		}
+		if entity != nil {
+			db.PutEntity(obj.GetKey(), entity)
+			if obj.GetExpiration() != nil {
+				db.Expire(obj.GetKey(), *obj.GetExpiration())
+			}
+			db.addAof(aof.EntityToCmd(obj.GetKey(), entity).Args)
+		}
+		return true
+	})
 }

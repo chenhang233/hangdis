@@ -28,11 +28,11 @@ func EntityToCmd(key string, entity *database.DataEntity) *protocol.MultiBulkRep
 		cmd = stringToCmd(key, val)
 	case List.List:
 		cmd = listToCmd(key, val)
-	case *set.Set:
+	case set.Set:
 		cmd = setToCmd(key, val)
 	case dict.Dict:
 		cmd = hashToCmd(key, val)
-	case *SortedSet.SortedSet:
+	case SortedSet.SortedSet:
 		cmd = zSetToCmd(key, val)
 	}
 	return cmd

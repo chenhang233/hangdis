@@ -124,4 +124,5 @@ func (p *PerSister) generateRDB(ctx *RewriteCtx) error {
 			return true
 		})
 	}
+	return nil
 }

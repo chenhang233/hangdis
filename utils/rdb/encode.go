@@ -12,12 +12,12 @@ import (
 var CRLF = []byte("\r\n")
 
 const (
-	typeString = iota
-	typeList
-	typeSet
-	typeHashMap
-	typeZSet
-	typeExpireTime
+	TypeString = iota
+	TypeList
+	TypeSet
+	TypeHashMap
+	TypeZSet
+	TypeExpireTime
 )
 
 type TTLOption uint64
@@ -62,7 +62,7 @@ func (e *Encoder) WriteString(s string) {
 }
 
 func (e *Encoder) writeTTL(expiration TTLOption) {
-	e.Write([]byte{typeExpireTime})
+	e.Write([]byte{TypeExpireTime})
 	e.Write([]byte{' '})
 	e.Write([]byte(strconv.FormatUint(uint64(expiration), 10)))
 	e.Write([]byte{' '})
@@ -79,14 +79,14 @@ func (e *Encoder) beforeWriteObject(options ...any) {
 
 func (e *Encoder) WriteStringObject(key string, value []byte, options ...any) error {
 	e.beforeWriteObject(options)
-	e.Write([]byte{typeString})
+	e.Write([]byte{TypeString})
 	e.WriteString(key)
 	e.Write(value)
 	return nil
 }
 func (e *Encoder) WriteListObject(key string, values [][]byte, options ...any) error {
 	e.beforeWriteObject(options)
-	e.Write([]byte{typeList})
+	e.Write([]byte{TypeList})
 	e.WriteString(key)
 	for _, v := range values {
 		e.Write(v)
@@ -96,7 +96,7 @@ func (e *Encoder) WriteListObject(key string, values [][]byte, options ...any) e
 }
 func (e *Encoder) WriteSetObject(key string, values [][]byte, options ...any) error {
 	e.beforeWriteObject(options)
-	e.Write([]byte{typeSet})
+	e.Write([]byte{TypeSet})
 	e.WriteString(key)
 	for _, v := range values {
 		e.Write(v)
@@ -107,7 +107,7 @@ func (e *Encoder) WriteSetObject(key string, values [][]byte, options ...any) er
 
 func (e *Encoder) WriteHashMapObject(key string, hash map[string][]byte, options ...any) error {
 	e.beforeWriteObject(options)
-	e.Write([]byte{typeHashMap})
+	e.Write([]byte{TypeHashMap})
 	e.WriteString(key)
 	for k, v := range hash {
 		e.WriteString(k)
@@ -119,7 +119,7 @@ func (e *Encoder) WriteHashMapObject(key string, hash map[string][]byte, options
 
 func (e *Encoder) WriteZSetObject(key string, entries []*SortedSet.Element, options ...any) error {
 	e.beforeWriteObject(options)
-	e.Write([]byte{typeZSet})
+	e.Write([]byte{TypeZSet})
 	e.WriteString(key)
 	data, err := json.Marshal(entries)
 	if err != nil {
