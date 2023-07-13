@@ -3,6 +3,7 @@ package aof
 import (
 	"context"
 	"fmt"
+	"hangdis/config"
 	"hangdis/interface/database"
 	"hangdis/redis/connection"
 	"hangdis/redis/parser"
@@ -205,4 +206,21 @@ func (p *PerSister) fsyncEverySecond() {
 			}
 		}
 	}()
+}
+
+func (p *PerSister) generateAof(ctx *RewriteCtx) error {
+	tempFile := ctx.tmpFile
+	tmpAof := p.newRewriteHandler()
+	tmpAof.LoadAof(int(ctx.fileSize))
+	for i := 0; i < config.Properties.Databases; i++ {
+		data := protocol.MakeMultiBulkReply(utils.ToCmdLine("SELECT", strconv.Itoa(i))).ToBytes()
+		_, err := tempFile.Write(data)
+		if err != nil {
+			return err
+		}
+		tmpAof.db.ForEach(i, func(key string, data *database.DataEntity, expiration *time.Time) bool {
+
+			tempFile.Write()
+		})
+	}
 }
