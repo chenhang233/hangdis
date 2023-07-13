@@ -219,8 +219,18 @@ func (p *PerSister) generateAof(ctx *RewriteCtx) error {
 			return err
 		}
 		tmpAof.db.ForEach(i, func(key string, data *database.DataEntity, expiration *time.Time) bool {
-
-			tempFile.Write()
+			cmd := EntityToCmd(key, data)
+			if cmd != nil {
+				_, _ = tempFile.Write(cmd.ToBytes())
+			}
+			if expiration != nil {
+				cmd := MakeExpireCmd(key, *expiration)
+				if cmd != nil {
+					_, _ = tempFile.Write(cmd.ToBytes())
+				}
+			}
+			return true
 		})
 	}
+	return nil
 }
