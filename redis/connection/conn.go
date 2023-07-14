@@ -6,6 +6,13 @@ import (
 	"sync"
 )
 
+const (
+	flagSlave = uint64(1 << iota)
+	flagMaster
+	// within a transaction
+	flagMulti
+)
+
 type Connection struct {
 	conn        net.Conn
 	sendingData sync.WaitGroup
@@ -125,33 +132,45 @@ func (c *Connection) GetChannels() []string {
 	return channels
 }
 
-// -----------------------------------------------------------------------------------------------------------
-
-func (c *Connection) InMultiState() bool {
-	return false
-}
-func (c *Connection) SetMultiState(bool) {
-}
-func (c *Connection) GetQueuedCmdLine() [][][]byte {
-	return nil
-}
-func (c *Connection) EnqueueCmd([][]byte) {
-}
-func (c *Connection) ClearQueuedCmds() {
-
-}
-func (c *Connection) GetWatching() map[string]uint32 {
-	return nil
-}
-
 func (c *Connection) SetSlave() {
+	c.flags |= flagSlave
 }
 func (c *Connection) IsSlave() bool {
-	return false
+	return c.flags&flagSlave > 0
 }
 func (c *Connection) SetMaster() {
-
+	c.flags |= flagMaster
 }
 func (c *Connection) IsMaster() bool {
-	return false
+	return c.flags&flagMaster > 0
+}
+
+func (c *Connection) InMultiState() bool {
+	return c.flags&flagMulti > 0
+
+}
+
+func (c *Connection) SetMultiState(state bool) {
+	if !state {
+		c.watching = nil
+		c.queue = nil
+		c.flags &= ^flagMulti
+		return
+	}
+	c.flags |= flagMulti
+}
+func (c *Connection) GetQueuedCmdLine() [][][]byte {
+	return c.queue
+}
+func (c *Connection) EnqueueCmd(cmdLine [][]byte) {
+	c.queue = append(c.queue, cmdLine)
+}
+func (c *Connection) ClearQueuedCmds() {
+	c.queue = nil
+}
+func (c *Connection) GetWatching() map[string]uint32 {
+	if c.watching == nil {
+		c.watching = make(map[string]uint32)
+	}
+	return c.watching
 }
