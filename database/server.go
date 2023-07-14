@@ -18,9 +18,12 @@ import (
 )
 
 type Server struct {
-	dbSet     []*atomic.Value // *DB
-	hub       *pubsub.Hub
-	perSister *aof.PerSister
+	dbSet        []*atomic.Value // *DB
+	hub          *pubsub.Hub
+	perSister    *aof.PerSister
+	role         int32
+	slaveStatus  *slaveStatus
+	masterStatus *masterStatus
 }
 
 func fileExists(filename string) bool {
@@ -62,6 +65,8 @@ func NewStandaloneServer() *Server {
 			logs.LOG.Error.Println(err)
 		}
 	}
+	// ---------------------
+	server.role = masterRole
 	return server
 }
 
