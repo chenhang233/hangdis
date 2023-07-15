@@ -47,6 +47,8 @@
 ### 手动打包
 ```jsx
     go env 查看配置环境
+    
+    windows:
     go build -o hangdis.exe main.go
     cd redis/client/cmd/
     go build -o client.exe main.go
