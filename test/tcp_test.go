@@ -77,3 +77,21 @@ func findCircleNum(isConnected [][]int) (ans int) {
 	return
 
 }
+
+type Slice struct {
+	arr []int
+}
+
+func (s *Slice) getSlice() []int {
+	return s.arr[:]
+}
+
+func TestSlice(t *testing.T) {
+	s := &Slice{
+		arr: []int{1, 2, 3},
+	}
+	slice := s.getSlice()
+	slice = append(slice, 4)
+	fmt.Println(s.arr, "----", slice)
+}
+

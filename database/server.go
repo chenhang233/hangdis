@@ -65,7 +65,8 @@ func NewStandaloneServer() *Server {
 			logs.LOG.Error.Println(err)
 		}
 	}
-	// ---------------------
+
+	server.initMasterStatus()
 	server.role = masterRole
 	return server
 }
