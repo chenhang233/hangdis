@@ -87,6 +87,24 @@ func NewPerSister(db database.DBEngine, filename string, load bool, fsync string
 	return p, nil
 }
 
+func (p *PerSister) RemoveListener(listener Listener) {
+	p.pausingAof.Lock()
+	defer p.pausingAof.Unlock()
+	delete(p.listeners, listener)
+}
+
+func (p *PerSister) Close() {
+	if p.aofFile != nil {
+		close(p.aofChan)
+		<-p.aofFinished // wait for aof finished
+		err := p.aofFile.Close()
+		if err != nil {
+			logs.LOG.Error.Println(err)
+		}
+	}
+	p.cancel()
+}
+
 func (p *PerSister) LoadAof(maxBytes int) {
 	aofChan := p.aofChan
 	p.aofChan = nil

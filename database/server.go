@@ -159,8 +159,10 @@ func (server *Server) AfterClientClose(c redis.Connection) {
 
 func (server *Server) Close() {
 	if server.perSister != nil {
-		//server.perSister.Close()
+		server.perSister.Close()
 	}
+	server.stopSlaveStatus()
+	server.stopMasterStatus()
 }
 
 func (server *Server) mustSelectDB(dbIndex int) *DB {
