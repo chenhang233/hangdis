@@ -158,10 +158,10 @@ func (server *Server) AfterClientClose(c redis.Connection) {
 }
 
 func (server *Server) Close() {
+	server.stopSlaveStatus()
 	if server.perSister != nil {
 		server.perSister.Close()
 	}
-	server.stopSlaveStatus()
 	server.stopMasterStatus()
 }
 
