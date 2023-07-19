@@ -1,11 +1,13 @@
 package database
 
 import (
+	"errors"
 	"fmt"
 	"hangdis/interface/redis"
 	"hangdis/redis/protocol"
 	"hangdis/utils"
 	"hangdis/utils/logs"
+	"io"
 	"os"
 	"strconv"
 	"strings"
@@ -22,6 +24,13 @@ const (
 	bgSaveIdle = uint8(iota)
 	bgSaveRunning
 	bgSaveFinish
+)
+
+const (
+	slaveStateHandShake = uint8(iota)
+	slaveStateWaitSaveEnd
+	slaveStateSendingRDB
+	slaveStateOnline
 )
 
 type slaveClient struct {
@@ -215,5 +224,107 @@ func (server *Server) execReplConf(c redis.Connection, args [][]byte) redis.Repl
 	}
 	return protocol.MakeOkReply()
 }
+func (server *Server) saveForReplication() error {
 
-func (server *Server) execPSync(c redis.Connection, args [][]byte) redis.Reply {}
+}
+
+func (server *Server) bgSaveForReplication() {
+	go func() {
+		if err := server.saveForReplication(); err != nil {
+			logs.LOG.Error.Println(fmt.Sprintf("save for replication error: %v", err))
+		}
+	}()
+}
+
+var cannotPartialSync = errors.New("cannot do partial sync")
+
+func (server *Server) execPSync(c redis.Connection, args [][]byte) redis.Reply {
+	replId := string(args[0])
+	replOffset, err := strconv.ParseInt(string(args[1]), 10, 64)
+	if err != nil {
+		return protocol.MakeErrReply("ERR value is not an integer or out of range")
+	}
+	server.masterStatus.mu.Lock()
+	defer server.masterStatus.mu.Unlock()
+	slave := server.masterStatus.slaveMap[c]
+	if slave == nil {
+		slave = &slaveClient{
+			conn: c,
+		}
+		c.SetSlave()
+		server.masterStatus.slaveMap[c] = slave
+	}
+	if server.masterStatus.bgSaveState == bgSaveIdle {
+		slave.state = slaveStateWaitSaveEnd
+		server.masterStatus.waitSlaves[slave] = struct{}{}
+		server.bgSaveForReplication()
+	} else if server.masterStatus.bgSaveState == bgSaveRunning {
+		slave.state = slaveStateWaitSaveEnd
+		server.masterStatus.waitSlaves[slave] = struct{}{}
+	} else if server.masterStatus.bgSaveState == bgSaveFinish {
+		go func() {
+			err := server.masterTryPartialSyncWithSlave(slave, replId, replOffset)
+			if err == nil {
+				return
+			}
+			if err != nil && err != cannotPartialSync {
+				server.removeSlave(slave)
+				logs.LOG.Error.Println(fmt.Sprintf("masterTryPartialSyncWithSlave error: %v", err))
+				return
+			}
+			if err := server.masterFullReSyncWithSlave(slave); err != nil {
+				server.removeSlave(slave)
+				logs.LOG.Error.Println(fmt.Sprintf("masterFullReSyncWithSlave error: %v", err))
+				return
+			}
+		}()
+	}
+	return &protocol.EmptyMultiBulkReply{}
+}
+
+func (server *Server) masterTryPartialSyncWithSlave(slave *slaveClient, replId string, slaveOffset int64) error {
+	return nil
+}
+
+func (server *Server) setSlaveOnline(slave *slaveClient, currentOffset int64) {
+	server.masterStatus.mu.Lock()
+	defer server.masterStatus.mu.Unlock()
+	slave.state = slaveStateOnline
+	slave.offset = currentOffset
+	server.masterStatus.onlineSlaves[slave] = struct{}{}
+}
+
+func (server *Server) masterFullReSyncWithSlave(slave *slaveClient) error {
+	header := "+FULLRESYNC " + server.masterStatus.replId + " " +
+		strconv.FormatInt(server.masterStatus.backlog.beginOffset, 10) + protocol.CRLF
+	_, err := slave.conn.Write([]byte(header))
+	if err != nil {
+		return fmt.Errorf("write replication header to slave failed: %v", err)
+	}
+	// send rdb
+	rdbFile, err := os.Open(server.masterStatus.rdbFilename)
+	if err != nil {
+		return fmt.Errorf("open rdb file %s for replication error: %v", server.masterStatus.rdbFilename, err)
+	}
+	slave.state = slaveStateSendingRDB
+	rdbInfo, _ := os.Stat(server.masterStatus.rdbFilename)
+	rdbSize := rdbInfo.Size()
+	rdbHeader := "$" + strconv.FormatInt(rdbSize, 10) + protocol.CRLF
+	_, err = slave.conn.Write([]byte(rdbHeader))
+	if err != nil {
+		return fmt.Errorf("write rdb header to slave failed: %v", err)
+	}
+	_, err = io.Copy(slave.conn, rdbFile)
+	if err != nil {
+		return fmt.Errorf("write rdb file to slave failed: %v", err)
+	}
+	server.masterStatus.mu.RLock()
+	backlog, currentOffset := server.masterStatus.backlog.getSnapshot()
+	server.masterStatus.mu.RUnlock()
+	_, err = slave.conn.Write(backlog)
+	if err != nil {
+		return fmt.Errorf("full resync write backlog to slave failed: %v", err)
+	}
+	server.setSlaveOnline(slave, currentOffset)
+	return nil
+}

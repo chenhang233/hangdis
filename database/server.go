@@ -116,6 +116,8 @@ func (server *Server) Exec(c redis.Connection, cmdLine [][]byte) (result redis.R
 		return execSelect(c, server, cmdLine[1:])
 	} else if cmdName == "replconf" {
 		return server.execReplConf(c, cmdLine[1:])
+	} else if cmdName == "psync" {
+		return server.execPSync(c, cmdLine[1:])
 	}
 	if p, ok := pubSubTable[cmdName]; ok {
 		exec := p.executor
