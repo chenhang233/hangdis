@@ -7,6 +7,8 @@ import (
 	"hangdis/utils"
 	"hangdis/utils/logs"
 	"os"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -153,3 +155,65 @@ func (server *Server) stopMasterStatus() {
 	server.masterStatus.onlineSlaves = make(map[*slaveClient]struct{})
 	server.masterStatus.bgSaveState = bgSaveIdle
 }
+
+var pingBytes = protocol.MakeMultiBulkReply(utils.ToCmdLine("ping")).ToBytes()
+
+const maxBacklogSize = 10 * 1024 * 1024
+
+func (server *Server) masterCron() {
+	server.masterStatus.mu.Lock()
+	if len(server.masterStatus.slaveMap) == 0 {
+		server.masterStatus.mu.Unlock()
+		return
+	}
+	if server.masterStatus.bgSaveState == bgSaveFinish {
+		server.masterStatus.backlog.appendBytes(pingBytes)
+	}
+	backlogSize := len(server.masterStatus.backlog.buf)
+	server.masterStatus.mu.Unlock()
+	if err := server.masterSendUpdatesToSlave(); err != nil {
+		logs.LOG.Error.Println(fmt.Sprintf("masterSendUpdatesToSlave error: %v", err))
+	}
+	if backlogSize > maxBacklogSize && !server.masterStatus.rewriting {
+		//go func() {
+		//server.masterStatus.rewriting = true
+		//defer func() {
+		//server.masterStatus.rewriting = false
+		//}()
+		//if err := server.rewriteAOF(); err != nil {
+		//	server.masterStatus.rewriting = false
+		//logs.LOG.Error.Println(fmt.Sprintf("rewrite error: %v", err))
+		//}
+		//}()
+	}
+}
+
+//func (server *Server) rewriteAOF() error {
+//	tmpFile, err := os.CreateTemp(config.GetTmpDir(), "*.aof")
+//}
+
+func (server *Server) execReplConf(c redis.Connection, args [][]byte) redis.Reply {
+	if len(args)%2 != 0 {
+		return protocol.MakeSyntaxErrReply()
+	}
+	server.masterStatus.mu.RLock()
+	slave := server.masterStatus.slaveMap[c]
+	server.masterStatus.mu.RUnlock()
+	for i := 0; i < len(args); i += 2 {
+		key := strings.ToLower(string(args[i]))
+		value := string(args[i+1])
+		switch key {
+		case "ack":
+			offset, err := strconv.ParseInt(value, 10, 64)
+			if err != nil {
+				return protocol.MakeErrReply("ERR value is not an integer or out of range")
+			}
+			slave.offset = offset
+			slave.lastAckTime = time.Now()
+			return &protocol.EmptyMultiBulkReply{}
+		}
+	}
+	return protocol.MakeOkReply()
+}
+
+func (server *Server) execPSync(c redis.Connection, args [][]byte) redis.Reply {}

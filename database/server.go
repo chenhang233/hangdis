@@ -67,6 +67,7 @@ func NewStandaloneServer() *Server {
 	}
 
 	server.initMasterStatus()
+	server.startReplCron()
 	server.role = masterRole
 	return server
 }
@@ -113,6 +114,8 @@ func (server *Server) Exec(c redis.Connection, cmdLine [][]byte) (result redis.R
 			return protocol.MakeErrReply("ERR select")
 		}
 		return execSelect(c, server, cmdLine[1:])
+	} else if cmdName == "replconf" {
+		return server.execReplConf(c, cmdLine[1:])
 	}
 	if p, ok := pubSubTable[cmdName]; ok {
 		exec := p.executor
@@ -125,6 +128,16 @@ func (server *Server) Exec(c redis.Connection, cmdLine [][]byte) (result redis.R
 		return err
 	}
 	return db.Exec(c, cmdLine)
+}
+
+func (server *Server) startReplCron() {
+	go func(mdb *Server) {
+		ticker := time.Tick(time.Second * 10)
+		for range ticker {
+			mdb.slaveCron()
+			mdb.masterCron()
+		}
+	}(server)
 }
 
 func execSelect(c redis.Connection, mdb *Server, args [][]byte) redis.Reply {

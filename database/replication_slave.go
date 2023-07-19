@@ -17,3 +17,7 @@ func (repl *slaveStatus) stopSlaveWithMutex() {
 func (server *Server) stopSlaveStatus() {
 
 }
+
+func (server *Server) slaveCron() {
+
+}
