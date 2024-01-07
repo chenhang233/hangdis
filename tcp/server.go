@@ -74,7 +74,7 @@ func ListenAndServe(listener net.Listener, handler tcp.Handler, closeChan <-chan
 			errCh <- errors.New("Over maximum connection ")
 			continue
 		}
-		logs.LOG.Info.Println(fmt.Sprintf("client link: %s", utils.Blue(conn.RemoteAddr().String())))
+		logs.LOG.Info.Println(fmt.Sprintf("accept client: %s", utils.Blue(conn.RemoteAddr().String())))
 		ClientCounter++
 		waitDone.Add(1)
 		go func() {

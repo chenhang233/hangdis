@@ -23,6 +23,7 @@ func main() {
 	}
 	err := tcp.ListenAndServeWithSignal(c, server.MakeHandler())
 	if err != nil {
+		logs.LOG.Error.Println("main: tcp.ListenAndServeWithSignal")
 		logs.LOG.Error.Println(err)
 	}
 }
