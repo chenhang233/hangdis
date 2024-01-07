@@ -29,7 +29,8 @@ func (db *DB) getOrInitList(key string) (List.List, bool, redis.ErrorReply) {
 	}
 	isNew := false
 	if list == nil {
-		list = List.NewQuickList()
+		//list = List.NewQuickList()
+		list = List.MakeLinked()
 		db.PutEntity(key, &database.DataEntity{Data: list})
 		isNew = true
 	}

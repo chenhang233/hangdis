@@ -225,7 +225,7 @@ func (server *Server) execReplConf(c redis.Connection, args [][]byte) redis.Repl
 	return protocol.MakeOkReply()
 }
 func (server *Server) saveForReplication() error {
-
+	return nil
 }
 
 func (server *Server) bgSaveForReplication() {
