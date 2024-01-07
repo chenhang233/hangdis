@@ -59,7 +59,7 @@ func clear(c *client.Client) error {
 }
 
 func init() {
-	addr = flag.String("addr", "127.0.0.1:8888", "bind addr")
+	addr = flag.String("addr", "0.0.0.0:8888", "bind addr")
 	RegisterCMD("quit", quit)
 	RegisterCMD("exit", quit)
 	RegisterCMD("clear", clear)
@@ -69,6 +69,7 @@ func init() {
 func main() {
 	c, err := client.MakeClient(*addr)
 	if err != nil {
+		fmt.Println("MakeClient Dial")
 		panic(err)
 	}
 	fmt.Println(utils.Green(fmt.Sprintf("tcp connection establishment addr: %s client: %s", *addr, c.Conn.LocalAddr())))

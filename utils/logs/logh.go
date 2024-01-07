@@ -89,12 +89,17 @@ func LogPathInclude(path string) bool {
 
 func ReadLogs(path string, date string) error {
 	if !LogPathInclude(path) {
-		return errors.New("日志路径错误")
+		return errors.New("log path error")
 	}
-	file, err := os.ReadFile(logsFilePath + "/" + path + "/" + date)
-	if err != nil {
-		fmt.Println(err, "--")
-	}
-	fmt.Println(file)
+	p := logsFilePath + "/" + path + "/" + date + ".txt"
+	ReadAllLogs(p)
 	return nil
+}
+
+func ReadAllLogs(p string) {
+	file, err := os.ReadFile(p)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(string(file))
 }
