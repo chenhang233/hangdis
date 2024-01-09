@@ -16,7 +16,7 @@ type ConcurrentDict struct {
 }
 
 type shard struct {
-	m     map[string]interface{}
+	m     map[string]any
 	mutex sync.RWMutex
 }
 
@@ -68,7 +68,7 @@ func MakeConcurrent(shardCount int) *ConcurrentDict {
 	tables := make([]*shard, shardCount)
 	for i := 0; i < shardCount; i++ {
 		tables[i] = &shard{
-			m: make(map[string]interface{}),
+			m: make(map[string]any),
 		}
 	}
 	return &ConcurrentDict{
