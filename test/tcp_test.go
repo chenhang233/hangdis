@@ -95,3 +95,9 @@ func TestSlice(t *testing.T) {
 	fmt.Println(s.arr, "----", slice)
 }
 
+func TestI(t *testing.T) {
+	var i *int
+	i = new(int)
+	*i = 10
+	t.Log(i)
+}
